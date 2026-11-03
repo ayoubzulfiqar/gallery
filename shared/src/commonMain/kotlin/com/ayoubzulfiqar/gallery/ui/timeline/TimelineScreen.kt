@@ -57,6 +57,7 @@ fun TimelineScreen(
     onMediaClick: (mediaId: String) -> Unit,
     onVideoClick: (mediaId: String, uri: String) -> Unit = { _, _ -> },
     onFolderClick: (bucketId: String, folderName: String) -> Unit = { _, _ -> },
+    onMoveToVault: (List<String>) -> Unit = {},
     themeMode: ThemeMode = ThemeMode.SYSTEM,
     onToggleTheme: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -161,8 +162,8 @@ fun TimelineScreen(
                     // Modern Segmented Density Selector
                     Row(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(Color.White.copy(alpha = 0.08f))
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.08f))
                             .padding(3.dp),
                         horizontalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
@@ -177,7 +178,7 @@ fun TimelineScreen(
 
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(16.dp))
+                                    .clip(RoundedCornerShape(10.dp))
                                     .background(bgColor)
                                     .clickable { viewModel.setDensity(d) }
                                     .padding(horizontal = 10.dp, vertical = 6.dp),
@@ -205,12 +206,12 @@ fun TimelineScreen(
             ) {
                 TimelineCategoryFilter.values().forEach { cat ->
                     val isSelected = categoryFilter == cat
-                    val bg = if (isSelected) Color(0xFF00B4D8) else Color.White.copy(alpha = 0.08f)
+                    val bg = if (isSelected) Color(0xFF00B4D8) else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.08f)
                     val textCol = if (isSelected) Color.White else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.65f)
 
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(14.dp))
+                            .clip(RoundedCornerShape(12.dp))
                             .background(bg)
                             .clickable { viewModel.setCategoryFilter(cat) }
                             .padding(horizontal = 14.dp, vertical = 6.dp)
@@ -254,13 +255,13 @@ fun TimelineScreen(
                                         horizontalAlignment = Alignment.CenterHorizontally,
                                         modifier = Modifier
                                             .width(82.dp)
-                                            .clip(RoundedCornerShape(16.dp))
+                                            .clip(RoundedCornerShape(12.dp))
                                             .clickable { onFolderClick(folder.id, folder.name) }
                                     ) {
                                         Box(
                                             modifier = Modifier
                                                 .size(76.dp)
-                                                .clip(RoundedCornerShape(16.dp))
+                                                .clip(RoundedCornerShape(12.dp))
                                                 .background(Color(0xFF1B222C))
                                         ) {
                                             AsyncMediaImage(
@@ -334,7 +335,10 @@ fun TimelineScreen(
             onShare = { /* Share */ },
             onFavorite = { selectedIds.forEach { viewModel.toggleFavorite(it) } },
             onAddToAlbum = { /* Add to album */ },
-            onMoveToVault = { /* Move to vault */ },
+            onMoveToVault = {
+                onMoveToVault(selectedIds.toList())
+                viewModel.clearSelection()
+            },
             onDelete = { viewModel.deleteSelected() },
             onClose = { viewModel.clearSelection() },
             modifier = Modifier

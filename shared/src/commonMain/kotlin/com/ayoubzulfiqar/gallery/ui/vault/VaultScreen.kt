@@ -1,5 +1,6 @@
 package com.ayoubzulfiqar.gallery.ui.vault
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -9,10 +10,12 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -23,22 +26,36 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import com.ayoubzulfiqar.gallery.domain.model.MediaItem
+import com.ayoubzulfiqar.gallery.ui.common.AsyncMediaImage
 import com.ayoubzulfiqar.gallery.ui.theme.GalleryIcons
 import com.ayoubzulfiqar.gallery.ui.timeline.MediaThumbnailItem
 
@@ -46,14 +63,32 @@ import com.ayoubzulfiqar.gallery.ui.timeline.MediaThumbnailItem
 fun VaultScreen(
     viewModel: VaultViewModel,
     onBack: () -> Unit,
+    onRestoreItem: (MediaItem) -> Unit = {},
+    isDark: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var selectedVaultItem by remember { mutableStateOf<MediaItem?>(null) }
+
+    LaunchedEffect(Unit) {
+        viewModel.refresh()
+    }
+
+    val canvasBackground = if (isDark) Color(0xFF0B0F12) else Color(0xFFF8FAFC)
+    val surfaceColor = if (isDark) Color(0xFF161B20) else Color.White
+    val textPrimary = if (isDark) Color.White else Color(0xFF0F172A)
+    val textSecondary = if (isDark) Color.White.copy(alpha = 0.6f) else Color(0xFF64748B)
+    val keyBg = if (isDark) Color(0xFF161B20) else Color.White
+    val keyBorder = if (isDark) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.08f)
+    val dotEmptyBg = if (isDark) Color(0xFF1E262C) else Color(0xFFE2E8F0)
+    val dotEmptyBorder = if (isDark) Color.White.copy(alpha = 0.15f) else Color.Black.copy(alpha = 0.12f)
+    val accentCyan = Color(0xFF00B4D8)
+    val dangerRed = Color(0xFFEF4444)
 
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFF0B0F12))
+            .background(canvasBackground)
     ) {
         val screenWidth = maxWidth
         val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
@@ -72,7 +107,7 @@ fun VaultScreen(
                     Icon(
                         imageVector = GalleryIcons.ChevronBack,
                         contentDescription = "Back",
-                        tint = Color.White,
+                        tint = textPrimary,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -84,13 +119,13 @@ fun VaultScreen(
                     Icon(
                         imageVector = GalleryIcons.Vault,
                         contentDescription = null,
-                        tint = Color(0xFF00B4D8),
+                        tint = accentCyan,
                         modifier = Modifier.size(20.dp)
                     )
                     Text(
                         text = "Encrypted Vault",
                         style = MaterialTheme.typography.titleLarge.copy(
-                            color = Color.White,
+                            color = textPrimary,
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp
                         )
@@ -100,7 +135,7 @@ fun VaultScreen(
                 if (uiState.isUnlocked) {
                     TextButton(
                         onClick = { viewModel.lockVault() },
-                        colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFFF6B6B))
+                        colors = ButtonDefaults.textButtonColors(contentColor = dangerRed)
                     ) {
                         Text("Lock", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                     }
@@ -123,14 +158,14 @@ fun VaultScreen(
                         modifier = Modifier
                             .size(72.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF00B4D8).copy(alpha = 0.12f))
-                            .border(1.5.dp, Color(0xFF00B4D8).copy(alpha = 0.35f), CircleShape),
+                            .background(accentCyan.copy(alpha = if (isDark) 0.12f else 0.10f))
+                            .border(1.5.dp, accentCyan.copy(alpha = if (isDark) 0.35f else 0.25f), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = GalleryIcons.Vault,
                             contentDescription = "Vault Locked",
-                            tint = Color(0xFF00B4D8),
+                            tint = accentCyan,
                             modifier = Modifier.size(32.dp)
                         )
                     }
@@ -138,7 +173,7 @@ fun VaultScreen(
                     Text(
                         text = "Enter Vault PIN",
                         style = MaterialTheme.typography.headlineSmall.copy(
-                            color = Color.White,
+                            color = textPrimary,
                             fontWeight = FontWeight.Bold,
                             fontSize = 22.sp
                         ),
@@ -147,11 +182,27 @@ fun VaultScreen(
                     Text(
                         text = "Protected by AES-256-GCM authenticated encryption",
                         style = MaterialTheme.typography.bodySmall.copy(
-                            color = Color.White.copy(alpha = 0.5f),
+                            color = textSecondary,
                             fontSize = 12.sp
                         ),
-                        modifier = Modifier.padding(top = 4.dp, bottom = 28.dp)
+                        modifier = Modifier.padding(top = 4.dp)
                     )
+
+                    // Default PIN hint badge
+                    Row(
+                        modifier = Modifier
+                            .padding(top = 8.dp, bottom = 28.dp)
+                            .background(accentCyan.copy(alpha = if (isDark) 0.12f else 0.08f), RoundedCornerShape(12.dp))
+                            .padding(horizontal = 12.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Default PIN: 1234",
+                            color = accentCyan,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
 
                     // PIN Dots
                     Row(
@@ -164,10 +215,10 @@ fun VaultScreen(
                                 modifier = Modifier
                                     .size(16.dp)
                                     .clip(CircleShape)
-                                    .background(if (filled) Color(0xFF00B4D8) else Color(0xFF1E262C))
+                                    .background(if (filled) accentCyan else dotEmptyBg)
                                     .border(
                                         1.dp,
-                                        if (filled) Color(0xFF00B4D8) else Color.White.copy(alpha = 0.15f),
+                                        if (filled) accentCyan else dotEmptyBorder,
                                         CircleShape
                                     )
                             )
@@ -177,7 +228,7 @@ fun VaultScreen(
                     if (uiState.errorMessage != null) {
                         Text(
                             text = uiState.errorMessage!!,
-                            color = Color(0xFFFF453A),
+                            color = dangerRed,
                             style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
                             modifier = Modifier.padding(bottom = 16.dp)
                         )
@@ -201,15 +252,15 @@ fun VaultScreen(
                                     modifier = Modifier
                                         .size(68.dp)
                                         .clip(CircleShape)
-                                        .background(if (key.isNotEmpty()) Color(0xFF161B20) else Color.Transparent)
+                                        .background(if (key.isNotEmpty()) keyBg else Color.Transparent)
                                         .border(
                                             if (key.isNotEmpty()) 1.dp else 0.dp,
-                                            if (key.isNotEmpty()) Color.White.copy(alpha = 0.08f) else Color.Transparent,
+                                            if (key.isNotEmpty()) keyBorder else Color.Transparent,
                                             CircleShape
                                         )
                                         .clickable(enabled = key.isNotEmpty()) {
                                             if (key == "DEL") viewModel.onPinBackspace()
-                                            else viewModel.onPinDigit(key)
+                                             else viewModel.onPinDigit(key)
                                         },
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -217,14 +268,14 @@ fun VaultScreen(
                                         Icon(
                                             imageVector = GalleryIcons.Backspace,
                                             contentDescription = "Backspace",
-                                            tint = Color.White,
+                                            tint = textPrimary,
                                             modifier = Modifier.size(22.dp)
                                         )
                                     } else {
                                         Text(
                                             text = key,
                                             style = MaterialTheme.typography.headlineMedium.copy(
-                                                color = Color.White,
+                                                color = textPrimary,
                                                 fontWeight = FontWeight.Medium,
                                                 fontSize = 26.sp
                                             )
@@ -236,7 +287,31 @@ fun VaultScreen(
                     }
                 }
             } else {
-                // Unlocked Vault Items Grid
+                // Unlocked Vault Items Screen
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "${uiState.items.size} ${if (uiState.items.size == 1) "item" else "items"} securely vaulted",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            color = textSecondary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    )
+                    Text(
+                        text = "AES-256-GCM Sandbox",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            color = accentCyan,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    )
+                }
+
                 if (uiState.items.isEmpty()) {
                     Box(
                         modifier = Modifier
@@ -247,19 +322,25 @@ fun VaultScreen(
                     ) {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.padding(horizontal = 32.dp)
                         ) {
                             Icon(
                                 imageVector = GalleryIcons.Vault,
                                 contentDescription = null,
-                                tint = Color.White.copy(alpha = 0.3f),
-                                modifier = Modifier.size(48.dp)
+                                tint = textSecondary.copy(alpha = 0.4f),
+                                modifier = Modifier.size(54.dp)
                             )
                             Text(
-                                text = "Vault is empty\nMove photos here to encrypt them securely",
-                                color = Color.White.copy(alpha = 0.5f),
-                                style = MaterialTheme.typography.bodyLarge,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                text = "Vault is empty",
+                                color = textPrimary,
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                            )
+                            Text(
+                                text = "Move photos here from the viewer or albums to encrypt and hide them securely from your gallery.",
+                                color = textSecondary,
+                                style = MaterialTheme.typography.bodyMedium,
+                                textAlign = TextAlign.Center
                             )
                         }
                     }
@@ -280,9 +361,102 @@ fun VaultScreen(
                                 item = item,
                                 isSelected = false,
                                 isSelectionMode = false,
-                                onClick = { /* View vaulted item */ },
-                                onLongClick = { }
+                                onClick = { selectedVaultItem = item },
+                                onLongClick = { selectedVaultItem = item }
                             )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Vault Item Detail & Actions Modal Dialog
+        if (selectedVaultItem != null) {
+            val item = selectedVaultItem!!
+            Dialog(onDismissRequest = { selectedVaultItem = null }) {
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = surfaceColor),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        AsyncMediaImage(
+                            uri = item.uri,
+                            contentDescription = item.displayName,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(220.dp)
+                                .clip(RoundedCornerShape(12.dp)),
+                            isThumbnail = false,
+                            contentScale = ContentScale.Crop
+                        )
+
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Text(
+                                text = item.displayName,
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    color = textPrimary,
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            val kbSize = item.sizeBytes / 1024
+                            val sizeText = if (kbSize > 1024) "${kbSize / 1024} MB" else "$kbSize KB"
+                            Text(
+                                text = "$sizeText • Protected with AES-256-GCM",
+                                style = MaterialTheme.typography.bodySmall.copy(color = textSecondary)
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Button(
+                                onClick = {
+                                    viewModel.restoreItem(item) { restored ->
+                                        onRestoreItem(restored)
+                                    }
+                                    selectedVaultItem = null
+                                },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = accentCyan)
+                            ) {
+                                Text("Restore to Gallery", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            }
+
+                            OutlinedButton(
+                                onClick = {
+                                    viewModel.deleteItem(item)
+                                    selectedVaultItem = null
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(1.dp, dangerRed),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = dangerRed)
+                            ) {
+                                Text("Delete", color = dangerRed, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                            }
+                        }
+
+                        TextButton(
+                            onClick = { selectedVaultItem = null },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Close", color = textSecondary, fontSize = 13.sp)
                         }
                     }
                 }

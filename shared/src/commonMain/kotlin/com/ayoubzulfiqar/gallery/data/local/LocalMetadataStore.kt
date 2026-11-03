@@ -24,6 +24,23 @@ class LocalMetadataStore {
     private val _editRecipes = MutableStateFlow<Map<String, EditRecipe>>(emptyMap())
     val editRecipes: StateFlow<Map<String, EditRecipe>> = _editRecipes.asStateFlow()
 
+    private val _vaultedIds = MutableStateFlow<Set<String>>(emptySet())
+    val vaultedIds: StateFlow<Set<String>> = _vaultedIds.asStateFlow()
+
+    fun markVaulted(id: String) {
+        _vaultedIds.update { it + id }
+    }
+
+    fun markVaulted(ids: Collection<String>) {
+        _vaultedIds.update { it + ids }
+    }
+
+    fun unmarkVaulted(id: String) {
+        _vaultedIds.update { it - id }
+    }
+
+    fun isVaulted(id: String): Boolean = id in _vaultedIds.value
+
     fun setThemeMode(mode: ThemeMode) {
         _themeMode.value = mode
     }

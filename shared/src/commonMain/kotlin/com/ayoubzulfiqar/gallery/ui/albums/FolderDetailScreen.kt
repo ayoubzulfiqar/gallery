@@ -123,12 +123,12 @@ fun FolderDetailScreen(
             ) {
                 listOf("All", "Photos", "Videos").forEach { cat ->
                     val isSelected = selectedFilter == cat
-                    val bg = if (isSelected) Color(0xFF00B4D8) else Color.White.copy(alpha = 0.08f)
+                    val bg = if (isSelected) Color(0xFF00B4D8) else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.08f)
                     val textCol = if (isSelected) Color.White else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.65f)
 
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(14.dp))
+                            .clip(RoundedCornerShape(12.dp))
                             .background(bg)
                             .clickable { selectedFilter = cat }
                             .padding(horizontal = 14.dp, vertical = 6.dp)

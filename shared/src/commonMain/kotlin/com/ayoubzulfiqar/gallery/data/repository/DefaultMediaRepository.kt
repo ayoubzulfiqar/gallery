@@ -23,14 +23,17 @@ class DefaultMediaRepository(
         return combine(
             platformSource.observeMedia(),
             localStore.favorites,
-            localStore.tags
-        ) { platformItems, favorites, tagsMap ->
-            platformItems.map { item ->
-                item.copy(
-                    isFavorite = item.id in favorites,
-                    tags = tagsMap[item.id] ?: emptySet()
-                )
-            }
+            localStore.tags,
+            localStore.vaultedIds
+        ) { platformItems, favorites, tagsMap, vaultedIds ->
+            platformItems
+                .filter { it.id !in vaultedIds }
+                .map { item ->
+                    item.copy(
+                        isFavorite = item.id in favorites,
+                        tags = tagsMap[item.id] ?: emptySet()
+                    )
+                }
         }
     }
 

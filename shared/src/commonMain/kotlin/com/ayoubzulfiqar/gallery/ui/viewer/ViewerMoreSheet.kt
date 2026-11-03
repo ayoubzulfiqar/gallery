@@ -37,13 +37,20 @@ fun ViewerMoreSheet(
     onMoveToVault: () -> Unit,
     onShowExif: () -> Unit,
     onClose: () -> Unit,
+    isDark: Boolean = true,
     modifier: Modifier = Modifier
 ) {
+    val sheetBg = if (isDark) Color(0xFF13181C) else Color(0xFFFFFFFF)
+    val textPrimary = if (isDark) Color.White else Color(0xFF0F172A)
+    val textSecondary = if (isDark) Color.White.copy(alpha = 0.55f) else Color(0xFF64748B)
+    val dragHandleColor = if (isDark) Color.White.copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.15f)
+    val exifIconTint = if (isDark) Color.White else Color(0xFF334155)
+
     Box(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
-            .background(Color(0xFF13181C))
+            .background(sheetBg)
             .windowInsetsPadding(androidx.compose.foundation.layout.WindowInsets.navigationBars)
             .padding(horizontal = 20.dp, vertical = 16.dp)
     ) {
@@ -56,7 +63,7 @@ fun ViewerMoreSheet(
                 modifier = Modifier
                     .size(width = 36.dp, height = 4.dp)
                     .clip(RoundedCornerShape(2.dp))
-                    .background(Color.White.copy(alpha = 0.2f))
+                    .background(dragHandleColor)
                     .align(Alignment.CenterHorizontally)
             )
 
@@ -70,7 +77,7 @@ fun ViewerMoreSheet(
                     text = "Options & Tools",
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Bold,
-                        color = Color.White,
+                        color = textPrimary,
                         fontSize = 18.sp
                     )
                 )
@@ -79,7 +86,7 @@ fun ViewerMoreSheet(
                     Icon(
                         imageVector = GalleryIcons.Close,
                         contentDescription = "Close",
-                        tint = Color.White.copy(alpha = 0.7f),
+                        tint = textPrimary.copy(alpha = 0.7f),
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -95,6 +102,8 @@ fun ViewerMoreSheet(
                     iconTint = Color(0xFF00B4D8),
                     title = "Google Lens Visual Search",
                     subtitle = "Scan and search visual content online",
+                    textPrimary = textPrimary,
+                    textSecondary = textSecondary,
                     onClick = {
                         onClose()
                         onGoogleLens()
@@ -106,6 +115,8 @@ fun ViewerMoreSheet(
                     iconTint = Color(0xFF80D4FF),
                     title = "Set as Wallpaper",
                     subtitle = "Apply to Home Screen, Lock Screen, or Both",
+                    textPrimary = textPrimary,
+                    textSecondary = textSecondary,
                     onClick = {
                         onClose()
                         onSetAsWallpaper()
@@ -117,6 +128,8 @@ fun ViewerMoreSheet(
                     iconTint = Color(0xFF2EC4B6),
                     title = "Sanitize & Share",
                     subtitle = "Strip GPS and camera info on-the-fly (Zero duplicates)",
+                    textPrimary = textPrimary,
+                    textSecondary = textSecondary,
                     onClick = {
                         onClose()
                         onSanitizeShare()
@@ -125,9 +138,11 @@ fun ViewerMoreSheet(
 
                 MoreActionRow(
                     icon = GalleryIcons.ShieldCheck,
-                    iconTint = Color(0xFFFFB703),
-                    title = "Strip Metadata In-Place",
-                    subtitle = "Permanently wipe GPS and camera identifiers from file",
+                    iconTint = Color(0xFFFF9F1C),
+                    title = "Sanitize In-Place",
+                    subtitle = "Remove metadata directly from this device file",
+                    textPrimary = textPrimary,
+                    textSecondary = textSecondary,
                     onClick = {
                         onClose()
                         onStripInPlace()
@@ -136,9 +151,11 @@ fun ViewerMoreSheet(
 
                 MoreActionRow(
                     icon = GalleryIcons.Vault,
-                    iconTint = Color(0xFF00B4D8),
+                    iconTint = Color(0xFFE71D36),
                     title = "Move to Encrypted Vault",
-                    subtitle = "Encrypt securely behind AES-256-GCM PIN",
+                    subtitle = "Encrypt with AES-256 GCM inside secure sandbox",
+                    textPrimary = textPrimary,
+                    textSecondary = textSecondary,
                     onClick = {
                         onClose()
                         onMoveToVault()
@@ -147,9 +164,11 @@ fun ViewerMoreSheet(
 
                 MoreActionRow(
                     icon = GalleryIcons.InfoCircle,
-                    iconTint = Color.White,
+                    iconTint = exifIconTint,
                     title = "View Technical EXIF",
                     subtitle = "Camera model, aperture, shutter, and lens specs",
+                    textPrimary = textPrimary,
+                    textSecondary = textSecondary,
                     onClick = {
                         onClose()
                         onShowExif()
@@ -166,6 +185,8 @@ private fun MoreActionRow(
     iconTint: Color,
     title: String,
     subtitle: String,
+    textPrimary: Color = Color.White,
+    textSecondary: Color = Color.White.copy(alpha = 0.55f),
     onClick: () -> Unit
 ) {
     Row(
@@ -195,13 +216,13 @@ private fun MoreActionRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                color = Color.White,
+                color = textPrimary,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold
             )
             Text(
                 text = subtitle,
-                color = Color.White.copy(alpha = 0.55f),
+                color = textSecondary,
                 fontSize = 11.sp,
                 modifier = Modifier.padding(top = 1.dp)
             )

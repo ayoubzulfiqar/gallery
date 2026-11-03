@@ -10,4 +10,6 @@ interface VaultRepository {
     suspend fun getVaultItems(): List<MediaItem>
     suspend fun moveToVault(mediaItem: MediaItem, plainTextBytes: ByteArray): VaultEntry
     suspend fun restoreFromVault(vaultId: String): ByteArray
+    suspend fun restoreItem(itemId: String): MediaItem?
+    suspend fun deleteVaultItem(itemId: String): Boolean
 }

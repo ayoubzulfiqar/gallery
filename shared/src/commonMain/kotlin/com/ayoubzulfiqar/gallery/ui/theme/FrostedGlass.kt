@@ -11,11 +11,24 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 fun Modifier.frostedGlass(
+    isDark: Boolean = true,
     blurRadius: Dp = 20.dp,
-    tintColor: Color = Color(0xFF13181C).copy(alpha = 0.85f),
-    borderColor: Color = Color.White.copy(alpha = 0.15f),
-    shape: Shape = RoundedCornerShape(24.dp)
-): Modifier = this
-    .clip(shape)
-    .background(tintColor, shape)
-    .border(1.dp, borderColor, shape)
+    tintColor: Color? = null,
+    borderColor: Color? = null,
+    shape: Shape = RoundedCornerShape(16.dp)
+): Modifier {
+    val bg = tintColor ?: if (isDark) {
+        Color(0xFF13181C).copy(alpha = 0.85f)
+    } else {
+        Color(0xFFFFFFFF).copy(alpha = 0.92f)
+    }
+    val border = borderColor ?: if (isDark) {
+        Color.White.copy(alpha = 0.15f)
+    } else {
+        Color.Black.copy(alpha = 0.08f)
+    }
+    return this
+        .clip(shape)
+        .background(bg, shape)
+        .border(1.dp, border, shape)
+}

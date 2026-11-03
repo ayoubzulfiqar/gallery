@@ -36,17 +36,17 @@ fun MediaThumbnailItem(
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val cornerRadius = if (isSelectionMode) 10.dp else 3.dp
+    val cornerRadius = 12.dp
 
     Box(
         modifier = modifier
             .aspectRatio(1f)
-            .padding(1.dp)
+            .padding(1.5.dp)
             .clip(RoundedCornerShape(cornerRadius))
             .background(Color(0xFF161B20))
             .then(
                 if (isSelected) {
-                    Modifier.border(2.5.dp, Color(0xFF00B4D8), RoundedCornerShape(cornerRadius))
+                    Modifier.border(2.dp, Color(0xFF00B4D8), RoundedCornerShape(cornerRadius))
                 } else Modifier
             )
             .combinedClickable(

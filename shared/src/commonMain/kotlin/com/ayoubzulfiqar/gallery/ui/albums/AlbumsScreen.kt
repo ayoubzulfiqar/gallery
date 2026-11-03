@@ -101,8 +101,8 @@ fun AlbumsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 6.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color.White.copy(alpha = 0.08f))
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.06f))
                     .padding(horizontal = 14.dp, vertical = 10.dp)
             ) {
                 Row(
@@ -184,15 +184,15 @@ private fun FolderCardItem(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
+            .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
     ) {
-        // Thumbnail Cover with squircle and count overlay
+        // Thumbnail Cover with 12dp corner and count overlay
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(1f)
-                .clip(RoundedCornerShape(18.dp))
+                .clip(RoundedCornerShape(12.dp))
                 .background(Color(0xFF1B222C))
         ) {
             AsyncMediaImage(

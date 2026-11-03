@@ -48,6 +48,7 @@ import com.ayoubzulfiqar.gallery.security.MetadataStripper
 import com.ayoubzulfiqar.gallery.ui.albums.AlbumsScreen
 import com.ayoubzulfiqar.gallery.ui.albums.AlbumsViewModel
 import com.ayoubzulfiqar.gallery.ui.albums.FolderDetailScreen
+import com.ayoubzulfiqar.gallery.ui.common.GalleryBackHandler
 import com.ayoubzulfiqar.gallery.ui.editor.PhotoEditorScreen
 import com.ayoubzulfiqar.gallery.ui.editor.PhotoEditorViewModel
 import com.ayoubzulfiqar.gallery.ui.exif.ExifInspectorSheet
@@ -65,8 +66,8 @@ import com.ayoubzulfiqar.gallery.ui.viewer.LightboxViewerScreen
 import com.ayoubzulfiqar.gallery.ui.viewer.ViewerViewModel
 import com.ayoubzulfiqar.gallery.vault.data.DefaultVaultRepository
 import androidx.compose.runtime.collectAsState
-
 import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @Composable
@@ -132,6 +133,22 @@ fun App(
                         onFolderClick = { bucketId, folderName ->
                             navState.navigateTo(GalleryDestination.FolderDetail(bucketId, folderName))
                         },
+                        onMoveToVault = { ids ->
+                            coroutineScope.launch {
+                                val allItems = mediaRepository.getMediaFlow().first()
+                                for (id in ids) {
+                                    val itemToVault = allItems.find { it.id == id }
+                                    if (itemToVault != null) {
+                                        val dummyBytes = itemToVault.uri.encodeToByteArray()
+                                        vaultRepository.moveToVault(itemToVault, dummyBytes)
+                                        localStore.markVaulted(itemToVault.id)
+                                    }
+                                }
+                                mediaRepository.deleteMedia(ids)
+                                vaultViewModel.refresh()
+                                navState.navigateTo(GalleryDestination.Vault)
+                            }
+                        },
                         themeMode = themeMode,
                         onToggleTheme = { localStore.cycleThemeMode() }
                     )
@@ -166,9 +183,21 @@ fun App(
                                 activeStripper.stripImageMetadata(uri, inPlace = true)
                             }
                         },
-                        onMoveToVault = { _ ->
-                            navState.navigateTo(GalleryDestination.Vault)
-                        }
+                        onMoveToVault = { mediaId ->
+                            coroutineScope.launch {
+                                val allItems = mediaRepository.getMediaFlow().first()
+                                val itemToVault = allItems.find { it.id == mediaId }
+                                if (itemToVault != null) {
+                                    val dummyBytes = itemToVault.uri.encodeToByteArray()
+                                    vaultRepository.moveToVault(itemToVault, dummyBytes)
+                                    localStore.markVaulted(itemToVault.id)
+                                    mediaRepository.deleteMedia(listOf(itemToVault.id))
+                                    vaultViewModel.refresh()
+                                    navState.replaceWith(GalleryDestination.Vault)
+                                }
+                            }
+                        },
+                        isDark = isDark
                     )
                 }
 
@@ -189,7 +218,15 @@ fun App(
                 is GalleryDestination.Vault -> {
                     VaultScreen(
                         viewModel = vaultViewModel,
-                        onBack = { navState.navigateBack() }
+                        onBack = {
+                            if (!navState.navigateBack()) {
+                                navState.navigateTo(GalleryDestination.Timeline)
+                            }
+                        },
+                        onRestoreItem = { restoredItem ->
+                            localStore.unmarkVaulted(restoredItem.id)
+                        },
+                        isDark = isDark
                     )
                 }
 
@@ -226,6 +263,15 @@ fun App(
                 }
             }
 
+            // Back button handling across app navigation and sheets
+            GalleryBackHandler(enabled = activeExifItem != null || navState.canNavigateBack) {
+                if (activeExifItem != null) {
+                    activeExifItem = null
+                } else {
+                    navState.navigateBack()
+                }
+            }
+
             // EXIF Bottom Sheet Modal
             if (activeExifItem != null) {
                 ExifInspectorSheet(
@@ -253,7 +299,7 @@ fun App(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .frostedGlass(blurRadius = 24.dp)
+                        .frostedGlass(isDark = isDark, blurRadius = 24.dp)
                         .padding(horizontal = 8.dp, vertical = 6.dp),
                     horizontalArrangement = Arrangement.SpaceAround,
                     verticalAlignment = Alignment.CenterVertically
@@ -262,18 +308,21 @@ fun App(
                         label = "Photos",
                         icon = GalleryIcons.Photos,
                         isSelected = navState.currentDestination is GalleryDestination.Timeline,
+                        isDark = isDark,
                         onClick = { navState.navigateTo(GalleryDestination.Timeline) }
                     )
                     NavPill(
                         label = "Albums",
                         icon = GalleryIcons.Albums,
                         isSelected = navState.currentDestination is GalleryDestination.Albums,
+                        isDark = isDark,
                         onClick = { navState.navigateTo(GalleryDestination.Albums) }
                     )
                     NavPill(
                         label = "Vault",
                         icon = GalleryIcons.Vault,
                         isSelected = navState.currentDestination is GalleryDestination.Vault,
+                        isDark = isDark,
                         onClick = { navState.navigateTo(GalleryDestination.Vault) }
                     )
                 }
@@ -287,18 +336,21 @@ private fun NavPill(
     label: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     isSelected: Boolean,
+    isDark: Boolean = true,
     onClick: () -> Unit
 ) {
     val activeBg by animateColorAsState(
-        if (isSelected) Color(0xFF00B4D8).copy(alpha = 0.16f) else Color.Transparent
+        if (isSelected) Color(0xFF00B4D8).copy(alpha = if (isDark) 0.16f else 0.12f) else Color.Transparent
     )
+    val unselectedColor = if (isDark) Color.White.copy(alpha = 0.55f) else Color(0xFF64748B)
+    val activeColor = Color(0xFF00B4D8)
     val tintColor by animateColorAsState(
-        if (isSelected) Color(0xFF00B4D8) else Color.White.copy(alpha = 0.55f)
+        if (isSelected) activeColor else unselectedColor
     )
 
     Row(
         modifier = Modifier
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(12.dp))
             .background(activeBg)
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 8.dp),

@@ -72,6 +72,35 @@ class VaultViewModel(
         }
     }
 
+    fun refresh() {
+        viewModelScope.launch {
+            val unlocked = vaultRepository.isVaultUnlocked()
+            if (unlocked) {
+                val items = vaultRepository.getVaultItems()
+                _uiState.value = _uiState.value.copy(isUnlocked = true, items = items)
+            }
+        }
+    }
+
+    fun restoreItem(item: MediaItem, onRestored: (MediaItem) -> Unit) {
+        viewModelScope.launch {
+            val restored = vaultRepository.restoreItem(item.id)
+            if (restored != null) {
+                val items = vaultRepository.getVaultItems()
+                _uiState.value = _uiState.value.copy(items = items)
+                onRestored(restored)
+            }
+        }
+    }
+
+    fun deleteItem(item: MediaItem) {
+        viewModelScope.launch {
+            vaultRepository.deleteVaultItem(item.id)
+            val items = vaultRepository.getVaultItems()
+            _uiState.value = _uiState.value.copy(items = items)
+        }
+    }
+
     private fun checkUnlockStatus() {
         viewModelScope.launch {
             val unlocked = vaultRepository.isVaultUnlocked()

@@ -7,7 +7,6 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,22 +19,24 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -57,6 +58,7 @@ fun LightboxViewerScreen(
     onSanitizeShare: (contentUri: String, mimeType: String) -> Unit = { _, _ -> },
     onStripInPlace: (contentUri: String) -> Unit = {},
     onMoveToVault: (mediaId: String) -> Unit = {},
+    isDark: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val isChromeVisible by viewModel.isChromeVisible.collectAsState()
@@ -65,38 +67,72 @@ fun LightboxViewerScreen(
 
     var showMoreSheet by remember { mutableStateOf(false) }
 
+    val initialPage = remember(items) {
+        currentIndex.coerceIn(0, (items.size - 1).coerceAtLeast(0))
+    }
+    val pagerState = rememberPagerState(
+        initialPage = initialPage,
+        pageCount = { items.size }
+    )
+
+    // Synchronize horizontal swipe page changes to ViewModel
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.currentPage }.collect { page ->
+            if (page != currentIndex && page in items.indices) {
+                viewModel.setIndex(page)
+            }
+        }
+    }
+
+    // Synchronize programmatic index updates to pager
+    LaunchedEffect(currentIndex) {
+        if (currentIndex != pagerState.currentPage && currentIndex in items.indices) {
+            pagerState.scrollToPage(currentIndex)
+        }
+    }
+
     val item = items.getOrNull(currentIndex)
+    val canvasBackground = if (isDark) Color.Black else Color(0xFFF1F5F9)
+    val chromeColor = if (isDark) Color.White else Color(0xFF0F172A)
+
+    var isCurrentZoomed by remember { mutableStateOf(false) }
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Black)
-            .pointerInput(items.size, currentIndex) {
-                detectHorizontalDragGestures { _, dragAmount ->
-                    if (dragAmount < -50f && currentIndex < items.lastIndex) {
-                        viewModel.setIndex(currentIndex + 1)
-                    } else if (dragAmount > 50f && currentIndex > 0) {
-                        viewModel.setIndex(currentIndex - 1)
+            .background(canvasBackground)
+    ) {
+        if (items.isNotEmpty()) {
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize(),
+                userScrollEnabled = !isCurrentZoomed,
+                key = { if (it in items.indices) items[it].id else it }
+            ) { pageIndex ->
+                val pageItem = items.getOrNull(pageIndex)
+                if (pageItem != null) {
+                    ZoomableMediaBox(
+                        onDismissRequest = onBack,
+                        onTap = { viewModel.toggleChrome() },
+                        onZoomChanged = { zoomed ->
+                            if (pageIndex == pagerState.currentPage) {
+                                isCurrentZoomed = zoomed
+                            }
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        AsyncMediaImage(
+                            uri = pageItem.uri,
+                            contentDescription = pageItem.displayName,
+                            modifier = Modifier.fillMaxSize(),
+                            isThumbnail = false,
+                            contentScale = ContentScale.Fit
+                        )
                     }
                 }
             }
-    ) {
-        if (item != null) {
-            ZoomableMediaBox(
-                onDismissRequest = onBack,
-                onTap = { viewModel.toggleChrome() },
-                modifier = Modifier.fillMaxSize()
-            ) {
-                AsyncMediaImage(
-                    uri = item.uri,
-                    contentDescription = item.displayName,
-                    modifier = Modifier.fillMaxSize(),
-                    isThumbnail = false,
-                    contentScale = ContentScale.Fit
-                )
-            }
 
-            if (item.mediaType == MediaType.VIDEO && item.durationMs != null) {
+            if (item != null && item.mediaType == MediaType.VIDEO && item.durationMs != null) {
                 AnimatedVisibility(
                     visible = isChromeVisible,
                     enter = fadeIn(),
@@ -127,7 +163,7 @@ fun LightboxViewerScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .frostedGlass(blurRadius = 24.dp)
+                    .frostedGlass(isDark = isDark, blurRadius = 24.dp)
                     .padding(horizontal = 12.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -136,14 +172,14 @@ fun LightboxViewerScreen(
                     Icon(
                         imageVector = GalleryIcons.ChevronBack,
                         contentDescription = "Back",
-                        tint = Color.White,
+                        tint = chromeColor,
                         modifier = Modifier.size(20.dp)
                     )
                 }
 
                 Text(
-                    text = "${currentIndex + 1} of ${items.size}",
-                    color = Color.White.copy(alpha = 0.9f),
+                    text = "${(currentIndex + 1).coerceAtMost(items.size)} of ${items.size}",
+                    color = chromeColor.copy(alpha = 0.9f),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -157,7 +193,7 @@ fun LightboxViewerScreen(
                         Icon(
                             imageVector = if (isFav) GalleryIcons.HeartFilled else GalleryIcons.HeartOutline,
                             contentDescription = "Favorite",
-                            tint = if (isFav) Color(0xFFFF3B30) else Color.White,
+                            tint = if (isFav) Color(0xFFFF3B30) else chromeColor,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -168,7 +204,7 @@ fun LightboxViewerScreen(
                         Icon(
                             imageVector = GalleryIcons.MoreHorizontal,
                             contentDescription = "More Options",
-                            tint = Color.White,
+                            tint = chromeColor,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -189,7 +225,7 @@ fun LightboxViewerScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .frostedGlass(blurRadius = 24.dp)
+                    .frostedGlass(isDark = isDark, blurRadius = 24.dp)
                     .padding(horizontal = 8.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically
@@ -211,17 +247,20 @@ fun LightboxViewerScreen(
                     ActionPillButton(
                         icon = GalleryIcons.EditPen,
                         label = "Edit",
+                        tint = chromeColor,
                         onClick = { item?.let { onEdit(it.id) } }
                     )
                 }
                 ActionPillButton(
                     icon = GalleryIcons.ShareArrow,
                     label = "Share",
+                    tint = chromeColor,
                     onClick = { item?.let { onSanitizeShare(it.uri, it.mimeType) } }
                 )
                 ActionPillButton(
                     icon = GalleryIcons.Wallpaper,
                     label = "Wallpaper",
+                    tint = chromeColor,
                     onClick = { item?.let { onSetAsWallpaper(it.uri) } }
                 )
                 ActionPillButton(
@@ -243,6 +282,7 @@ fun LightboxViewerScreen(
                 onMoveToVault = { onMoveToVault(item.id) },
                 onShowExif = onShowExif,
                 onClose = { showMoreSheet = false },
+                isDark = isDark,
                 modifier = Modifier.align(Alignment.BottomCenter)
             )
         }

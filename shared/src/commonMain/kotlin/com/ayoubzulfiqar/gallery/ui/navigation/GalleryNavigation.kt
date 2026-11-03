@@ -6,6 +6,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 
+import androidx.compose.runtime.mutableStateListOf
+
 sealed class GalleryDestination {
     object Timeline : GalleryDestination()
     data class Viewer(val mediaId: String) : GalleryDestination()
@@ -17,16 +19,23 @@ sealed class GalleryDestination {
 }
 
 class GalleryNavState(initialDestination: GalleryDestination = GalleryDestination.Timeline) {
-    private val backStack = mutableListOf<GalleryDestination>()
+    private val backStack = mutableStateListOf<GalleryDestination>()
 
     var currentDestination by mutableStateOf(initialDestination)
         private set
+
+    val canNavigateBack: Boolean
+        get() = backStack.isNotEmpty()
 
     fun navigateTo(destination: GalleryDestination) {
         if (currentDestination != destination) {
             backStack.add(currentDestination)
             currentDestination = destination
         }
+    }
+
+    fun replaceWith(destination: GalleryDestination) {
+        currentDestination = destination
     }
 
     fun navigateBack(): Boolean {

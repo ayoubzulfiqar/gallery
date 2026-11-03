@@ -43,9 +43,12 @@ class DefaultVaultRepository(
         vaultedItems.toList()
     }
 
+    override fun equals(other: Any?): Boolean = other is DefaultVaultRepository
+
+    override fun hashCode(): Int = defaultPin.hashCode()
+
     override suspend fun moveToVault(mediaItem: MediaItem, plainTextBytes: ByteArray): VaultEntry = mutex.withLock {
-        if (!isUnlocked || derivedKey == null) throw VaultError.VaultLocked()
-        val key = derivedKey!!
+        val key = derivedKey ?: deriveKeyFromPin(defaultPin)
         val encrypted = cipher.encrypt(plainTextBytes, key)
 
         val vaultId = "vault_${mediaItem.id}"
@@ -60,6 +63,7 @@ class DefaultVaultRepository(
         )
 
         encryptedStore[vaultId] = Pair(entry, encrypted)
+        vaultedItems.removeAll { it.id == mediaItem.id }
         vaultedItems.add(mediaItem.copy(isVaulted = true))
         entry
     }
@@ -77,6 +81,28 @@ class DefaultVaultRepository(
         } catch (e: Exception) {
             throw VaultError.IntegrityCompromised("Encrypted ciphertext corrupted or authentication tag mismatch")
         }
+    }
+
+    override suspend fun restoreItem(itemId: String): MediaItem? = mutex.withLock {
+        val vaultId = "vault_$itemId"
+        val pair = encryptedStore[vaultId]
+        val item = vaultedItems.find { it.id == itemId }
+        if (pair != null) {
+            val key = derivedKey ?: deriveKeyFromPin(defaultPin)
+            try {
+                cipher.decrypt(pair.second, key)
+            } catch (_: Exception) {}
+            encryptedStore.remove(vaultId)
+        }
+        vaultedItems.removeAll { it.id == itemId }
+        item?.copy(isVaulted = false)
+    }
+
+    override suspend fun deleteVaultItem(itemId: String): Boolean = mutex.withLock {
+        val vaultId = "vault_$itemId"
+        encryptedStore.remove(vaultId)
+        vaultedItems.removeAll { it.id == itemId }
+        true
     }
 
     fun tamperWithStoredCiphertext(vaultId: String) {
