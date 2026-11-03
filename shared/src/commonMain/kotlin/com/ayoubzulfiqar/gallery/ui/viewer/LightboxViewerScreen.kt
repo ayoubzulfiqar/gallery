@@ -6,36 +6,47 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ayoubzulfiqar.gallery.domain.model.MediaType
+import com.ayoubzulfiqar.gallery.ui.theme.GalleryIcons
 import com.ayoubzulfiqar.gallery.ui.theme.frostedGlass
 
 @Composable
 fun LightboxViewerScreen(
     viewModel: ViewerViewModel,
-    onBack: () -> Unit,
+    onBack: UnitCallback = {},
     onEdit: (mediaId: String) -> Unit,
-    onShowExif: () -> Unit,
+    onShowExif: UnitCallback = {},
     modifier: Modifier = Modifier
 ) {
     val isChromeVisible by viewModel.isChromeVisible.collectAsState()
@@ -68,19 +79,28 @@ fun LightboxViewerScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.hsv(tintHue * 360f, 0.4f, 0.5f)),
+                        .background(Color.hsv(tintHue * 360f, 0.4f, 0.45f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(horizontal = 24.dp)
+                    ) {
                         Text(
                             text = item.displayName,
                             color = Color.White,
-                            style = MaterialTheme.typography.titleLarge
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 20.sp
+                            )
                         )
                         Text(
                             text = "${item.width} × ${item.height} • ${(item.sizeBytes / 1_000_000.0).toString().take(4)} MB",
                             color = Color.White.copy(alpha = 0.7f),
-                            style = MaterialTheme.typography.bodyMedium
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontSize = 13.sp
+                            ),
+                            modifier = Modifier.padding(top = 4.dp)
                         )
                     }
                 }
@@ -93,91 +113,144 @@ fun LightboxViewerScreen(
                     exit = fadeOut(),
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = 80.dp)
+                        .windowInsetsPadding(WindowInsets.navigationBars)
+                        .padding(bottom = 88.dp)
                 ) {
                     VideoPlayerOverlay(durationMs = item.durationMs)
                 }
             }
         }
 
-        // Top Chrome Bar
+        // Top Chrome Bar with System Status Bar Inset
         AnimatedVisibility(
             visible = isChromeVisible,
             enter = slideInVertically(initialOffsetY = { -it }),
             exit = slideOutVertically(targetOffsetY = { -it }),
-            modifier = Modifier.align(Alignment.TopCenter)
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .windowInsetsPadding(WindowInsets.statusBars)
+                .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 24.dp)
                     .frostedGlass(blurRadius = 24.dp)
                     .padding(horizontal = 12.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextButton(onClick = onBack, colors = ButtonDefaults.textButtonColors(contentColor = Color.White)) {
-                    Text("← Back", fontSize = 14.sp)
+                IconButton(onClick = onBack, modifier = Modifier.size(38.dp)) {
+                    Icon(
+                        imageVector = GalleryIcons.ChevronBack,
+                        contentDescription = "Back",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
 
                 Text(
                     text = "${currentIndex + 1} of ${items.size}",
-                    color = Color.White.copy(alpha = 0.8f),
-                    fontSize = 13.sp
+                    color = Color.White.copy(alpha = 0.9f),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold
                 )
 
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    IconButton(
                         onClick = { viewModel.toggleFavorite() },
-                        colors = ButtonDefaults.textButtonColors(contentColor = Color.White)
+                        modifier = Modifier.size(38.dp)
                     ) {
-                        Text(if (item?.isFavorite == true) "♥" else "♡", fontSize = 18.sp)
+                        val isFav = item?.isFavorite == true
+                        Icon(
+                            imageVector = if (isFav) GalleryIcons.HeartFilled else GalleryIcons.HeartOutline,
+                            contentDescription = "Favorite",
+                            tint = if (isFav) Color(0xFFFF3B30) else Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
-                    TextButton(
+                    IconButton(
                         onClick = onShowExif,
-                        colors = ButtonDefaults.textButtonColors(contentColor = Color.White)
+                        modifier = Modifier.size(38.dp)
                     ) {
-                        Text("ℹ Info", fontSize = 14.sp)
+                        Icon(
+                            imageVector = GalleryIcons.InfoCircle,
+                            contentDescription = "Information",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
             }
         }
 
-        // Bottom Action Bar
+        // Bottom Action Bar with Navigation Bar Inset
         AnimatedVisibility(
             visible = isChromeVisible,
             enter = slideInVertically(initialOffsetY = { it }),
             exit = slideOutVertically(targetOffsetY = { it }),
-            modifier = Modifier.align(Alignment.BottomCenter)
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .windowInsetsPadding(WindowInsets.navigationBars)
+                .padding(horizontal = 24.dp, vertical = 12.dp)
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 16.dp)
                     .frostedGlass(blurRadius = 24.dp)
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextButton(
-                    onClick = { item?.let { onEdit(it.id) } },
-                    colors = ButtonDefaults.textButtonColors(contentColor = Color.White)
-                ) {
-                    Text("✎ Edit", fontSize = 14.sp)
-                }
-                TextButton(
-                    onClick = { /* Share */ },
-                    colors = ButtonDefaults.textButtonColors(contentColor = Color.White)
-                ) {
-                    Text("↑ Share", fontSize = 14.sp)
-                }
-                TextButton(
-                    onClick = { viewModel.deleteCurrent(onDeleted = onBack) },
-                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFFF6B6B))
-                ) {
-                    Text("🗑 Delete", fontSize = 14.sp)
-                }
+                ActionPillButton(
+                    icon = GalleryIcons.EditPen,
+                    label = "Edit",
+                    onClick = { item?.let { onEdit(it.id) } }
+                )
+                ActionPillButton(
+                    icon = GalleryIcons.ShareArrow,
+                    label = "Share",
+                    onClick = { /* Share */ }
+                )
+                ActionPillButton(
+                    icon = GalleryIcons.Trash,
+                    label = "Delete",
+                    tint = Color(0xFFFF453A),
+                    onClick = { viewModel.deleteCurrent { onBack() } }
+                )
             }
         }
+    }
+}
+
+typealias UnitCallback = () -> Unit
+
+@Composable
+private fun ActionPillButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    tint: Color = Color.White,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = tint,
+            modifier = Modifier.size(20.dp)
+        )
+        Text(
+            text = label,
+            color = tint.copy(alpha = 0.9f),
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.padding(top = 2.dp)
+        )
     }
 }

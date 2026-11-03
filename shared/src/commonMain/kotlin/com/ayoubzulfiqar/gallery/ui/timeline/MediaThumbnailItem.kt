@@ -1,24 +1,29 @@
 package com.ayoubzulfiqar.gallery.ui.timeline
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ayoubzulfiqar.gallery.domain.model.MediaItem
 import com.ayoubzulfiqar.gallery.domain.model.MediaType
+import com.ayoubzulfiqar.gallery.ui.theme.GalleryIcons
 
 @Composable
 fun MediaThumbnailItem(
@@ -29,12 +34,19 @@ fun MediaThumbnailItem(
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val cornerRadius = if (isSelectionMode) 10.dp else 3.dp
+
     Box(
         modifier = modifier
             .aspectRatio(1f)
             .padding(1.dp)
-            .clip(RoundedCornerShape(if (isSelectionMode) 8.dp else 2.dp))
-            .background(Color(0xFF1E262C))
+            .clip(RoundedCornerShape(cornerRadius))
+            .background(Color(0xFF161B20))
+            .then(
+                if (isSelected) {
+                    Modifier.border(2.5.dp, Color(0xFF00B4D8), RoundedCornerShape(cornerRadius))
+                } else Modifier
+            )
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick
@@ -45,56 +57,82 @@ fun MediaThumbnailItem(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.hsv(tintHue * 360f, 0.35f, 0.4f))
+                .background(Color.hsv(tintHue * 360f, 0.35f, 0.38f))
         )
 
-        // Video duration badge
+        // Video duration badge with custom Play vector icon
         if (item.mediaType == MediaType.VIDEO && item.durationMs != null) {
             val seconds = (item.durationMs / 1000) % 60
             val minutes = (item.durationMs / 1000) / 60
             val formatted = "$minutes:${seconds.toString().padStart(2, '0')}"
-            Box(
+            Row(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(4.dp)
-                    .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(4.dp))
-                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                    .background(Color.Black.copy(alpha = 0.72f), RoundedCornerShape(6.dp))
+                    .padding(horizontal = 5.dp, vertical = 2.5.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                Icon(
+                    imageVector = GalleryIcons.Play,
+                    contentDescription = "Video",
+                    tint = Color.White,
+                    modifier = Modifier.size(9.dp)
+                )
                 Text(
-                    text = "▶ $formatted",
+                    text = " $formatted",
                     color = Color.White,
-                    fontSize = 10.sp
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Medium
                 )
             }
         }
 
-        // Favorite heart icon
+        // Favorite heart vector icon
         if (item.isFavorite) {
-            Text(
-                text = "♥",
-                color = Color(0xFFFF4D4D),
-                fontSize = 14.sp,
+            Box(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .padding(4.dp)
-            )
+                    .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                    .padding(4.dp)
+            ) {
+                Icon(
+                    imageVector = GalleryIcons.HeartFilled,
+                    contentDescription = "Favorite",
+                    tint = Color(0xFFFF3B30),
+                    modifier = Modifier.size(12.dp)
+                )
+            }
         }
 
-        // Selection indicator checkmark
+        // Selection indicator checkmark circle with custom Check vector
         if (isSelectionMode) {
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(6.dp)
+                    .size(22.dp)
                     .clip(CircleShape)
-                    .background(if (isSelected) Color(0xFF00B4D8) else Color.Black.copy(alpha = 0.5f))
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                    .background(
+                        if (isSelected) Color(0xFF00B4D8)
+                        else Color.Black.copy(alpha = 0.55f)
+                    )
+                    .border(
+                        1.5.dp,
+                        if (isSelected) Color.White else Color.White.copy(alpha = 0.6f),
+                        CircleShape
+                    ),
+                contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = if (isSelected) "✓" else "",
-                    color = Color.White,
-                    fontSize = 11.sp
-                )
+                if (isSelected) {
+                    Icon(
+                        imageVector = GalleryIcons.Check,
+                        contentDescription = "Selected",
+                        tint = Color.White,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
             }
         }
     }

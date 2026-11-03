@@ -1,16 +1,24 @@
 package com.ayoubzulfiqar.gallery
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -21,7 +29,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ayoubzulfiqar.gallery.data.datasource.FakePlatformMediaDataSource
@@ -35,6 +45,7 @@ import com.ayoubzulfiqar.gallery.ui.editor.PhotoEditorViewModel
 import com.ayoubzulfiqar.gallery.ui.exif.ExifInspectorSheet
 import com.ayoubzulfiqar.gallery.ui.navigation.GalleryDestination
 import com.ayoubzulfiqar.gallery.ui.navigation.rememberGalleryNavState
+import com.ayoubzulfiqar.gallery.ui.theme.GalleryIcons
 import com.ayoubzulfiqar.gallery.ui.theme.GalleryTheme
 import com.ayoubzulfiqar.gallery.ui.theme.frostedGlass
 import com.ayoubzulfiqar.gallery.ui.timeline.TimelineScreen
@@ -165,31 +176,32 @@ fun App(
                 exit = slideOutVertically(targetOffsetY = { it }),
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 20.dp, start = 32.dp, end = 32.dp)
+                    .windowInsetsPadding(WindowInsets.navigationBars)
+                    .padding(bottom = 12.dp, start = 24.dp, end = 24.dp)
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .frostedGlass(blurRadius = 24.dp)
-                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
                     horizontalArrangement = Arrangement.SpaceAround,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     NavPill(
                         label = "Photos",
-                        icon = "\uD83D\uDDBC",
+                        icon = GalleryIcons.Photos,
                         isSelected = navState.currentDestination is GalleryDestination.Timeline,
                         onClick = { navState.navigateTo(GalleryDestination.Timeline) }
                     )
                     NavPill(
                         label = "Albums",
-                        icon = "\uD83D\uDCC1",
+                        icon = GalleryIcons.Albums,
                         isSelected = navState.currentDestination is GalleryDestination.Albums,
                         onClick = { navState.navigateTo(GalleryDestination.Albums) }
                     )
                     NavPill(
                         label = "Vault",
-                        icon = "\uD83D\uDD12",
+                        icon = GalleryIcons.Vault,
                         isSelected = navState.currentDestination is GalleryDestination.Vault,
                         onClick = { navState.navigateTo(GalleryDestination.Vault) }
                     )
@@ -202,20 +214,37 @@ fun App(
 @Composable
 private fun NavPill(
     label: String,
-    icon: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    TextButton(
-        onClick = onClick,
-        colors = ButtonDefaults.textButtonColors(
-            contentColor = if (isSelected) Color(0xFF00B4D8) else Color.LightGray
-        )
+    val activeBg by animateColorAsState(
+        if (isSelected) Color(0xFF00B4D8).copy(alpha = 0.16f) else Color.Transparent
+    )
+    val tintColor by animateColorAsState(
+        if (isSelected) Color(0xFF00B4D8) else Color.White.copy(alpha = 0.55f)
+    )
+
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(activeBg)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = tintColor,
+            modifier = Modifier.size(19.dp)
+        )
         Text(
-            text = "$icon $label",
-            fontSize = 13.sp,
-            color = if (isSelected) Color(0xFF00B4D8) else Color.LightGray
+            text = label,
+            fontSize = 12.sp,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+            color = tintColor
         )
     }
 }
