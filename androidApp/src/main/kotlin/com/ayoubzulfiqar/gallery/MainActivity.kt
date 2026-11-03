@@ -8,6 +8,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.tooling.preview.Preview
 import com.ayoubzulfiqar.gallery.data.datasource.AndroidPlatformMediaDataSource
+import com.ayoubzulfiqar.gallery.platform.AndroidPlatformActionHandler
+import com.ayoubzulfiqar.gallery.security.AndroidMetadataStripper
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -18,7 +20,17 @@ class MainActivity : ComponentActivity() {
             val platformDataSource = remember {
                 AndroidPlatformMediaDataSource(contentResolver)
             }
-            App(platformDataSource = platformDataSource)
+            val platformActionHandler = remember {
+                AndroidPlatformActionHandler(this@MainActivity)
+            }
+            val metadataStripper = remember {
+                AndroidMetadataStripper(this@MainActivity)
+            }
+            App(
+                platformDataSource = platformDataSource,
+                platformActionHandler = platformActionHandler,
+                metadataStripper = metadataStripper
+            )
         }
     }
 }

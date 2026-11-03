@@ -34,12 +34,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.isSystemInDarkTheme
 import com.ayoubzulfiqar.gallery.data.datasource.FakePlatformMediaDataSource
 import com.ayoubzulfiqar.gallery.data.datasource.PlatformMediaDataSource
 import com.ayoubzulfiqar.gallery.data.local.LocalMetadataStore
 import com.ayoubzulfiqar.gallery.data.repository.DefaultMediaRepository
 import com.ayoubzulfiqar.gallery.domain.model.ExifMetadata
 import com.ayoubzulfiqar.gallery.domain.model.MediaItem
+import com.ayoubzulfiqar.gallery.platform.NoOpPlatformActionHandler
+import com.ayoubzulfiqar.gallery.platform.PlatformActionHandler
+import com.ayoubzulfiqar.gallery.security.FakeMetadataStripper
+import com.ayoubzulfiqar.gallery.security.MetadataStripper
 import com.ayoubzulfiqar.gallery.ui.editor.PhotoEditorScreen
 import com.ayoubzulfiqar.gallery.ui.editor.PhotoEditorViewModel
 import com.ayoubzulfiqar.gallery.ui.exif.ExifInspectorSheet
@@ -47,6 +52,7 @@ import com.ayoubzulfiqar.gallery.ui.navigation.GalleryDestination
 import com.ayoubzulfiqar.gallery.ui.navigation.rememberGalleryNavState
 import com.ayoubzulfiqar.gallery.ui.theme.GalleryIcons
 import com.ayoubzulfiqar.gallery.ui.theme.GalleryTheme
+import com.ayoubzulfiqar.gallery.ui.theme.ThemeMode
 import com.ayoubzulfiqar.gallery.ui.theme.frostedGlass
 import com.ayoubzulfiqar.gallery.ui.timeline.TimelineScreen
 import com.ayoubzulfiqar.gallery.ui.timeline.TimelineViewModel
@@ -55,12 +61,32 @@ import com.ayoubzulfiqar.gallery.ui.vault.VaultViewModel
 import com.ayoubzulfiqar.gallery.ui.viewer.LightboxViewerScreen
 import com.ayoubzulfiqar.gallery.ui.viewer.ViewerViewModel
 import com.ayoubzulfiqar.gallery.vault.data.DefaultVaultRepository
+import androidx.compose.runtime.collectAsState
 
 @Composable
 fun App(
-    platformDataSource: PlatformMediaDataSource? = null
+    platformDataSource: PlatformMediaDataSource? = null,
+    platformActionHandler: PlatformActionHandler? = null,
+    metadataStripper: MetadataStripper? = null
 ) {
-    GalleryTheme(darkTheme = true) {
+    val localStore = remember { LocalMetadataStore() }
+    val themeMode by localStore.themeMode.collectAsState()
+
+    val activeActions = remember(platformActionHandler) {
+        platformActionHandler ?: NoOpPlatformActionHandler()
+    }
+    val activeStripper = remember(metadataStripper) {
+        metadataStripper ?: FakeMetadataStripper()
+    }
+
+    val isDark = when (themeMode) {
+        ThemeMode.DARK -> true
+        ThemeMode.LIGHT -> false
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+    }
+    val canvasBackground = if (isDark) Color(0xFF0B0F12) else Color(0xFFF8FAFC)
+
+    GalleryTheme(themeMode = themeMode) {
         val navState = rememberGalleryNavState()
 
         // Shared data repositories
@@ -69,7 +95,6 @@ fun App(
                 populateWithSyntheticMedia(count = 120)
             }
         }
-        val localStore = remember { LocalMetadataStore() }
         val mediaRepository = remember(activePlatformSource) {
             DefaultMediaRepository(activePlatformSource, localStore)
         }
@@ -83,7 +108,7 @@ fun App(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFF0B0F12))
+                .background(canvasBackground)
         ) {
             // Main Content Area based on Destination
             when (val dest = navState.currentDestination) {
