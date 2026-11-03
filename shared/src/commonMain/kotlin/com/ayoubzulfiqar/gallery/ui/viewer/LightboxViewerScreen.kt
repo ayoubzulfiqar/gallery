@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -29,6 +28,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,13 +47,20 @@ import com.ayoubzulfiqar.gallery.ui.theme.frostedGlass
 fun LightboxViewerScreen(
     viewModel: ViewerViewModel,
     onBack: UnitCallback = {},
-    onEdit: (mediaId: String) -> Unit,
+    onEdit: (mediaId: String) -> Unit = {},
     onShowExif: UnitCallback = {},
+    onGoogleLens: (contentUri: String) -> Unit = {},
+    onSetAsWallpaper: (contentUri: String) -> Unit = {},
+    onSanitizeShare: (contentUri: String, mimeType: String) -> Unit = { _, _ -> },
+    onStripInPlace: (contentUri: String) -> Unit = {},
+    onMoveToVault: (mediaId: String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val isChromeVisible by viewModel.isChromeVisible.collectAsState()
     val items by viewModel.items.collectAsState()
     val currentIndex by viewModel.currentIndex.collectAsState()
+
+    var showMoreSheet by remember { mutableStateOf(false) }
 
     val item = items.getOrNull(currentIndex)
 
@@ -169,12 +178,12 @@ fun LightboxViewerScreen(
                         )
                     }
                     IconButton(
-                        onClick = onShowExif,
+                        onClick = { showMoreSheet = true },
                         modifier = Modifier.size(38.dp)
                     ) {
                         Icon(
-                            imageVector = GalleryIcons.InfoCircle,
-                            contentDescription = "Information",
+                            imageVector = GalleryIcons.MoreHorizontal,
+                            contentDescription = "More Options",
                             tint = Color.White,
                             modifier = Modifier.size(20.dp)
                         )
@@ -185,22 +194,28 @@ fun LightboxViewerScreen(
 
         // Bottom Action Bar with Navigation Bar Inset
         AnimatedVisibility(
-            visible = isChromeVisible,
+            visible = isChromeVisible && !showMoreSheet,
             enter = slideInVertically(initialOffsetY = { it }),
             exit = slideOutVertically(targetOffsetY = { it }),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .windowInsetsPadding(WindowInsets.navigationBars)
-                .padding(horizontal = 24.dp, vertical = 12.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .frostedGlass(blurRadius = 24.dp)
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                    .padding(horizontal = 8.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                ActionPillButton(
+                    icon = GalleryIcons.Lens,
+                    label = "Lens",
+                    tint = Color(0xFF00B4D8),
+                    onClick = { item?.let { onGoogleLens(it.uri) } }
+                )
                 ActionPillButton(
                     icon = GalleryIcons.EditPen,
                     label = "Edit",
@@ -209,7 +224,12 @@ fun LightboxViewerScreen(
                 ActionPillButton(
                     icon = GalleryIcons.ShareArrow,
                     label = "Share",
-                    onClick = { /* Share */ }
+                    onClick = { item?.let { onSanitizeShare(it.uri, it.mimeType) } }
+                )
+                ActionPillButton(
+                    icon = GalleryIcons.Wallpaper,
+                    label = "Wallpaper",
+                    onClick = { item?.let { onSetAsWallpaper(it.uri) } }
                 )
                 ActionPillButton(
                     icon = GalleryIcons.Trash,
@@ -218,6 +238,20 @@ fun LightboxViewerScreen(
                     onClick = { viewModel.deleteCurrent { onBack() } }
                 )
             }
+        }
+
+        // Contextual More Options Bottom Sheet
+        if (showMoreSheet && item != null) {
+            ViewerMoreSheet(
+                onGoogleLens = { onGoogleLens(item.uri) },
+                onSetAsWallpaper = { onSetAsWallpaper(item.uri) },
+                onSanitizeShare = { onSanitizeShare(item.uri, item.mimeType) },
+                onStripInPlace = { onStripInPlace(item.uri) },
+                onMoveToVault = { onMoveToVault(item.id) },
+                onShowExif = onShowExif,
+                onClose = { showMoreSheet = false },
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
         }
     }
 }
@@ -235,7 +269,7 @@ private fun ActionPillButton(
         modifier = Modifier
             .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 6.dp),
+            .padding(horizontal = 10.dp, vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -243,7 +277,7 @@ private fun ActionPillButton(
             imageVector = icon,
             contentDescription = label,
             tint = tint,
-            modifier = Modifier.size(20.dp)
+            modifier = Modifier.size(19.dp)
         )
         Text(
             text = label,

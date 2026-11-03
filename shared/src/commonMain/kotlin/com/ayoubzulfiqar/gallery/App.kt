@@ -63,12 +63,16 @@ import com.ayoubzulfiqar.gallery.ui.viewer.ViewerViewModel
 import com.ayoubzulfiqar.gallery.vault.data.DefaultVaultRepository
 import androidx.compose.runtime.collectAsState
 
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+
 @Composable
 fun App(
     platformDataSource: PlatformMediaDataSource? = null,
     platformActionHandler: PlatformActionHandler? = null,
     metadataStripper: MetadataStripper? = null
 ) {
+    val coroutineScope = rememberCoroutineScope()
     val localStore = remember { LocalMetadataStore() }
     val themeMode by localStore.themeMode.collectAsState()
 
@@ -140,6 +144,17 @@ fun App(
                                 focalLength = 6.9,
                                 address = "San Francisco, CA"
                             )
+                        },
+                        onGoogleLens = { uri -> activeActions.launchGoogleLens(uri) },
+                        onSetAsWallpaper = { uri -> activeActions.setAsWallpaper(uri) },
+                        onSanitizeShare = { uri, mime -> activeActions.shareSanitized(uri, mime) },
+                        onStripInPlace = { uri ->
+                            coroutineScope.launch {
+                                activeStripper.stripImageMetadata(uri, inPlace = true)
+                            }
+                        },
+                        onMoveToVault = { _ ->
+                            navState.navigateTo(GalleryDestination.Vault)
                         }
                     )
                 }

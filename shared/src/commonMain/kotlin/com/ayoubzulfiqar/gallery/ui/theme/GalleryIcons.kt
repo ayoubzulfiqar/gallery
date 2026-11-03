@@ -783,4 +783,250 @@ object GalleryIcons {
             }
         }.build()
     }
+
+    // Google Lens visual search icon
+    val Lens: ImageVector by lazy {
+        ImageVector.Builder(
+            name = "Lens",
+            defaultWidth = 24.dp,
+            defaultHeight = 24.dp,
+            viewportWidth = 24f,
+            viewportHeight = 24f
+        ).apply {
+            // Optical brackets
+            path(
+                stroke = SolidColor(Color.White),
+                strokeLineWidth = 2f,
+                strokeLineCap = StrokeCap.Round,
+                strokeLineJoin = StrokeJoin.Round
+            ) {
+                // Top-Left bracket
+                moveTo(7f, 4f)
+                lineTo(5f, 4f)
+                curveTo(4.45f, 4f, 4f, 4.45f, 4f, 5f)
+                lineTo(4f, 7f)
+
+                // Top-Right bracket
+                moveTo(17f, 4f)
+                lineTo(19f, 4f)
+                curveTo(19.55f, 4f, 20f, 4.45f, 20f, 5f)
+                lineTo(20f, 7f)
+
+                // Bottom-Left bracket
+                moveTo(4f, 17f)
+                lineTo(4f, 19f)
+                curveTo(4f, 19.55f, 4.45f, 20f, 5f, 20f)
+                lineTo(7f, 20f)
+
+                // Bottom-Right bracket
+                moveTo(20f, 17f)
+                lineTo(20f, 19f)
+                curveTo(20f, 19.55f, 19.55f, 20f, 19f, 20f)
+                lineTo(17f, 20f)
+            }
+            // Center lens ring
+            path(
+                stroke = SolidColor(Color(0xFF00B4D8)),
+                strokeLineWidth = 1.8f
+            ) {
+                moveTo(12f, 7.5f)
+                curveTo(14.49f, 7.5f, 16.5f, 9.51f, 16.5f, 12f)
+                curveTo(16.5f, 14.49f, 14.49f, 16.5f, 12f, 16.5f)
+                curveTo(9.51f, 16.5f, 7.5f, 14.49f, 7.5f, 12f)
+                curveTo(7.5f, 9.51f, 9.51f, 7.5f, 12f, 7.5f)
+                close()
+            }
+            // Inner optic dot
+            path(fill = SolidColor(Color(0xFF7928CA))) {
+                moveTo(12f, 10.5f)
+                curveTo(12.83f, 10.5f, 13.5f, 11.17f, 13.5f, 12f)
+                curveTo(13.5f, 12.83f, 12.83f, 13.5f, 12f, 13.5f)
+                curveTo(11.17f, 13.5f, 10.5f, 12.83f, 10.5f, 12f)
+                curveTo(10.5f, 11.17f, 11.17f, 10.5f, 12f, 10.5f)
+                close()
+            }
+        }.build()
+    }
+
+    // Wallpaper device framing icon
+    val Wallpaper: ImageVector by lazy {
+        ImageVector.Builder(
+            name = "Wallpaper",
+            defaultWidth = 24.dp,
+            defaultHeight = 24.dp,
+            viewportWidth = 24f,
+            viewportHeight = 24f
+        ).apply {
+            path(
+                stroke = SolidColor(Color.White),
+                strokeLineWidth = 1.8f,
+                strokeLineCap = StrokeCap.Round,
+                strokeLineJoin = StrokeJoin.Round
+            ) {
+                moveTo(7f, 2f)
+                lineTo(17f, 2f)
+                curveTo(18.1f, 2f, 19f, 2.9f, 19f, 4f)
+                lineTo(19f, 20f)
+                curveTo(19f, 21.1f, 18.1f, 22f, 17f, 22f)
+                lineTo(7f, 22f)
+                curveTo(5.9f, 22f, 5f, 21.1f, 5f, 20f)
+                lineTo(5f, 4f)
+                curveTo(5f, 2.9f, 5.9f, 2f, 7f, 2f)
+                close()
+            }
+            // Screen interior horizon
+            path(
+                stroke = SolidColor(Color(0xFF00B4D8)),
+                strokeLineWidth = 1.5f,
+                strokeLineCap = StrokeCap.Round,
+                strokeLineJoin = StrokeJoin.Round
+            ) {
+                moveTo(7f, 16f)
+                lineTo(10.5f, 12.5f)
+                lineTo(13f, 15f)
+                lineTo(15f, 13f)
+                lineTo(17f, 15f)
+            }
+        }.build()
+    }
+
+    // Shield Check (Privacy & Sanitization)
+    val ShieldCheck: ImageVector by lazy {
+        ImageVector.Builder(
+            name = "ShieldCheck",
+            defaultWidth = 24.dp,
+            defaultHeight = 24.dp,
+            viewportWidth = 24f,
+            viewportHeight = 24f
+        ).apply {
+            path(
+                stroke = SolidColor(Color.White),
+                strokeLineWidth = 1.8f,
+                strokeLineCap = StrokeCap.Round,
+                strokeLineJoin = StrokeJoin.Round
+            ) {
+                moveTo(12f, 2.5f)
+                lineTo(4f, 6f)
+                lineTo(4f, 11.5f)
+                curveTo(4f, 16.5f, 7.5f, 20.8f, 12f, 22f)
+                curveTo(16.5f, 20.8f, 20f, 16.5f, 20f, 11.5f)
+                lineTo(20f, 6f)
+                lineTo(12f, 2.5f)
+                close()
+            }
+            path(
+                stroke = SolidColor(Color(0xFF00B4D8)),
+                strokeLineWidth = 1.8f,
+                strokeLineCap = StrokeCap.Round,
+                strokeLineJoin = StrokeJoin.Round
+            ) {
+                moveTo(9f, 12f)
+                lineTo(11f, 14f)
+                lineTo(15f, 10f)
+            }
+        }.build()
+    }
+
+    // Sun (Light Mode)
+    val Sun: ImageVector by lazy {
+        ImageVector.Builder(
+            name = "Sun",
+            defaultWidth = 24.dp,
+            defaultHeight = 24.dp,
+            viewportWidth = 24f,
+            viewportHeight = 24f
+        ).apply {
+            path(stroke = SolidColor(Color(0xFFFFB703)), strokeLineWidth = 2f, strokeLineCap = StrokeCap.Round) {
+                // Sun disk
+                moveTo(12f, 7f)
+                curveTo(14.76f, 7f, 17f, 9.24f, 17f, 12f)
+                curveTo(17f, 14.76f, 14.76f, 17f, 12f, 17f)
+                curveTo(9.24f, 17f, 7f, 14.76f, 7f, 12f)
+                curveTo(7f, 9.24f, 9.24f, 7f, 12f, 7f)
+                close()
+                // Rays
+                moveTo(12f, 2f); lineTo(12f, 4f)
+                moveTo(12f, 20f); lineTo(12f, 22f)
+                moveTo(2f, 12f); lineTo(4f, 12f)
+                moveTo(20f, 12f); lineTo(22f, 12f)
+                moveTo(4.93f, 4.93f); lineTo(6.34f, 6.34f)
+                moveTo(17.66f, 17.66f); lineTo(19.07f, 19.07f)
+                moveTo(4.93f, 19.07f); lineTo(6.34f, 17.66f)
+                moveTo(17.66f, 6.34f); lineTo(19.07f, 4.93f)
+            }
+        }.build()
+    }
+
+    // Moon (Dark Mode)
+    val Moon: ImageVector by lazy {
+        ImageVector.Builder(
+            name = "Moon",
+            defaultWidth = 24.dp,
+            defaultHeight = 24.dp,
+            viewportWidth = 24f,
+            viewportHeight = 24f
+        ).apply {
+            path(
+                stroke = SolidColor(Color(0xFF80D4FF)),
+                strokeLineWidth = 1.8f,
+                strokeLineCap = StrokeCap.Round,
+                strokeLineJoin = StrokeJoin.Round
+            ) {
+                moveTo(21f, 12.79f)
+                curveTo(20.84f, 17.61f, 16.9f, 21.5f, 12.06f, 21.5f)
+                curveTo(7.06f, 21.5f, 3f, 17.44f, 3f, 12.44f)
+                curveTo(3f, 7.6f, 6.89f, 3.66f, 11.71f, 3.5f)
+                curveTo(11.17f, 4.79f, 10.87f, 6.2f, 10.87f, 7.69f)
+                curveTo(10.87f, 12.56f, 14.81f, 16.5f, 19.69f, 16.5f)
+                curveTo(20.14f, 16.5f, 20.58f, 16.47f, 21f, 16.4f)
+                close()
+            }
+        }.build()
+    }
+
+    // Auto Theme (Split circle)
+    val AutoTheme: ImageVector by lazy {
+        ImageVector.Builder(
+            name = "AutoTheme",
+            defaultWidth = 24.dp,
+            defaultHeight = 24.dp,
+            viewportWidth = 24f,
+            viewportHeight = 24f
+        ).apply {
+            // Outline circle
+            path(stroke = SolidColor(Color.White), strokeLineWidth = 1.8f) {
+                moveTo(12f, 2f)
+                curveTo(17.52f, 2f, 22f, 6.48f, 22f, 12f)
+                curveTo(22f, 17.52f, 17.52f, 22f, 12f, 22f)
+                curveTo(6.48f, 22f, 2f, 17.52f, 2f, 12f)
+                curveTo(2f, 6.48f, 6.48f, 2f, 12f, 2f)
+                close()
+            }
+            // Filled right half
+            path(fill = SolidColor(Color.White)) {
+                moveTo(12f, 2f)
+                lineTo(12f, 22f)
+                curveTo(17.52f, 22f, 22f, 17.52f, 22f, 12f)
+                curveTo(22f, 6.48f, 17.52f, 2f, 12f, 2f)
+                close()
+            }
+        }.build()
+    }
+
+    // More Horizontal (Three dots)
+    val MoreHorizontal: ImageVector by lazy {
+        ImageVector.Builder(
+            name = "MoreHorizontal",
+            defaultWidth = 24.dp,
+            defaultHeight = 24.dp,
+            viewportWidth = 24f,
+            viewportHeight = 24f
+        ).apply {
+            path(fill = SolidColor(Color.White)) {
+                moveTo(5f, 12f); curveTo(5.55f, 12f, 6f, 11.55f, 6f, 11f); curveTo(6f, 10.45f, 5.55f, 10f, 5f, 10f); curveTo(4.45f, 10f, 4f, 10.45f, 4f, 11f); curveTo(4f, 11.55f, 4.45f, 12f, 5f, 12f); close()
+                moveTo(12f, 12f); curveTo(12.55f, 12f, 13f, 11.55f, 13f, 11f); curveTo(13f, 10.45f, 12.55f, 10f, 12f, 10f); curveTo(11.45f, 10f, 11f, 10.45f, 11f, 11f); curveTo(11f, 11.55f, 11.45f, 12f, 12f, 12f); close()
+                moveTo(19f, 12f); curveTo(19.55f, 12f, 20f, 11.55f, 20f, 11f); curveTo(20f, 10.45f, 19.55f, 10f, 19f, 10f); curveTo(18.45f, 10f, 18f, 10.45f, 18f, 11f); curveTo(18f, 11.55f, 18.45f, 12f, 19f, 12f); close()
+            }
+        }.build()
+    }
 }
