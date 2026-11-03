@@ -1,63 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Android 13+ themed icon: single-colour glyph, alpha conveys depth. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp"
-    android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-
-    <!-- Outer Precision Ring -->
-    <path
-        android:pathData="M54,54m-32,0a32,32 0 1,0 64,0a32,32 0 1,0 -64,0"
-        android:strokeWidth="2.5"
-        android:strokeColor="#FFFFFF" />
-
-    <!-- Blade 1 -->
-    <path
-        android:pathData="M 61.00,54.00 L 57.50,60.06 Q 58.44,74.91 45.19,81.11 A 28.50 28.50 0 0 0 70.75,77.06 Q 69.62,60.96 61.00,54.00 Z"
-        android:fillColor="#FFFFFF"
-        android:strokeWidth="0.8"
-        android:strokeColor="#000000" />
-
-    <!-- Blade 2 -->
-    <path
-        android:pathData="M 57.50,60.06 L 50.50,60.06 Q 38.12,68.30 26.12,59.93 A 28.50 28.50 0 0 0 42.41,80.04 Q 55.79,71.01 57.50,60.06 Z"
-        android:fillColor="#FFFFFF"
-        android:strokeWidth="0.8"
-        android:strokeColor="#000000" />
-
-    <!-- Blade 3 -->
-    <path
-        android:pathData="M 50.50,60.06 L 47.00,54.00 Q 33.67,47.39 34.93,32.82 A 28.50 28.50 0 0 0 25.66,56.98 Q 40.17,64.05 50.50,60.06 Z"
-        android:fillColor="#FFFFFF"
-        android:strokeWidth="0.8"
-        android:strokeColor="#000000" />
-
-    <!-- Blade 4 -->
-    <path
-        android:pathData="M 47.00,54.00 L 50.50,47.94 Q 49.56,33.09 62.81,26.89 A 28.50 28.50 0 0 0 37.25,30.94 Q 38.38,47.04 47.00,54.00 Z"
-        android:fillColor="#FFFFFF"
-        android:strokeWidth="0.8"
-        android:strokeColor="#000000" />
-
-    <!-- Blade 5 -->
-    <path
-        android:pathData="M 50.50,47.94 L 57.50,47.94 Q 69.88,39.70 81.88,48.07 A 28.50 28.50 0 0 0 65.59,27.96 Q 52.21,36.99 50.50,47.94 Z"
-        android:fillColor="#FFFFFF"
-        android:strokeWidth="0.8"
-        android:strokeColor="#000000" />
-
-    <!-- Blade 6 -->
-    <path
-        android:pathData="M 57.50,47.94 L 61.00,54.00 Q 74.33,60.61 73.07,75.18 A 28.50 28.50 0 0 0 82.34,51.02 Q 67.83,43.95 57.50,47.94 Z"
-        android:fillColor="#FFFFFF"
-        android:strokeWidth="0.8"
-        android:strokeColor="#000000" />
-
-    <!-- Center Iris Core -->
-    <path
-        android:pathData="M54,54m-4.5,0a4.5,4.5 0 1,0 9,0a4.5,4.5 0 1,0 -9,0"
-        android:fillColor="#000000" />
-    <path
-        android:pathData="M54,54m-2.5,0a2.5,2.5 0 1,0 5,0a2.5,2.5 0 1,0 -5,0"
-        android:fillColor="#FFFFFF" />
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:pathData="M44.5,33 h27.0 a4.5,4.5 0 0 1 4.5,4.5 v26.0 a4.5,4.5 0 0 1 -4.5,4.5 h-27.0 a4.5,4.5 0 0 1 -4.5,-4.5 v-26.0 a4.5,4.5 0 0 1 4.5,-4.5 Z" android:fillColor="#FFFFFFFF" android:fillAlpha="0.45" />
+    <!-- Front card frame: card outline minus the photo window -->
+    <path android:pathData="M36.5,40 h27.0 a4.5,4.5 0 0 1 4.5,4.5 v26.0 a4.5,4.5 0 0 1 -4.5,4.5 h-27.0 a4.5,4.5 0 0 1 -4.5,-4.5 v-26.0 a4.5,4.5 0 0 1 4.5,-4.5 Z M37,43 h26 a2,2 0 0 1 2,2 v20 a2,2 0 0 1 -2,2 h-26 a2,2 0 0 1 -2,-2 v-20 a2,2 0 0 1 2,-2 Z" android:fillColor="#FFFFFFFF" android:fillType="evenOdd" />
+    <group>
+        <clip-path android:pathData="M37,43 h26 a2,2 0 0 1 2,2 v20 a2,2 0 0 1 -2,2 h-26 a2,2 0 0 1 -2,-2 v-20 a2,2 0 0 1 2,-2 Z" />
+        <path android:pathData="M55.1,49.5 a3.4,3.4 0 1,0 6.8,0 a3.4,3.4 0 1,0 -6.8,0 Z" android:fillColor="#FFFFFFFF" />
+        <path android:pathData="M35,67 L45.5,52.5 L51,59.5 L55,55 L65,65 L65,67 Z" android:fillColor="#FFFFFFFF" />
+        <path android:pathData="M35,67 L35,61.5 L40.5,56.5 L49,67 Z" android:fillColor="#FFFFFFFF" android:fillAlpha="0.7" />
+    </group>
 </vector>
