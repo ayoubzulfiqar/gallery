@@ -11,6 +11,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class TimelineViewModelTest {
+
     @Test
     fun testSelectionAndDensityChange() = runTest {
         val platformSource = FakePlatformMediaDataSource()
@@ -27,5 +28,24 @@ class TimelineViewModelTest {
 
         viewModel.clearSelection()
         assertFalse(viewModel.isSelectionMode.value)
+    }
+
+    @Test
+    fun testCategoryFilterUpdatesUiState() = runTest {
+        val platformSource = FakePlatformMediaDataSource()
+        platformSource.populateWithSyntheticMedia(count = 20)
+        val repo = DefaultMediaRepository(platformSource, LocalMetadataStore())
+        val viewModel = TimelineViewModel(repo)
+
+        assertEquals(TimelineCategoryFilter.ALL, viewModel.categoryFilter.value)
+
+        viewModel.setCategoryFilter(TimelineCategoryFilter.VIDEOS)
+        assertEquals(TimelineCategoryFilter.VIDEOS, viewModel.categoryFilter.value)
+
+        viewModel.setCategoryFilter(TimelineCategoryFilter.FAVORITES)
+        assertEquals(TimelineCategoryFilter.FAVORITES, viewModel.categoryFilter.value)
+
+        viewModel.setCategoryFilter(TimelineCategoryFilter.PHOTOS)
+        assertEquals(TimelineCategoryFilter.PHOTOS, viewModel.categoryFilter.value)
     }
 }

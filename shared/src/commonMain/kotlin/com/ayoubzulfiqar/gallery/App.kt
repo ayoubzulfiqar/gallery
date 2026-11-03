@@ -121,7 +121,9 @@ fun App(
                         viewModel = timelineViewModel,
                         onMediaClick = { id ->
                             navState.navigateTo(GalleryDestination.Viewer(id))
-                        }
+                        },
+                        themeMode = themeMode,
+                        onToggleTheme = { localStore.cycleThemeMode() }
                     )
                 }
 

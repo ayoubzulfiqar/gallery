@@ -4,7 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ayoubzulfiqar.gallery.domain.model.MediaItem
 import com.ayoubzulfiqar.gallery.domain.model.MediaTimelineGroup
+import com.ayoubzulfiqar.gallery.domain.model.MediaType
 import com.ayoubzulfiqar.gallery.domain.repository.MediaRepository
+import com.ayoubzulfiqar.gallery.domain.usecase.GroupMediaByTimelineUseCase
 import com.ayoubzulfiqar.gallery.ui.gesture.TimelineDensity
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -13,6 +15,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+
+enum class TimelineCategoryFilter {
+    ALL,
+    PHOTOS,
+    VIDEOS,
+    FAVORITES
+}
 
 data class TimelineUiState(
     val groups: List<MediaTimelineGroup> = emptyList(),
@@ -24,8 +33,13 @@ class TimelineViewModel(
     private val repository: MediaRepository
 ) : ViewModel() {
 
+    private val grouper = GroupMediaByTimelineUseCase()
+
     private val _density = MutableStateFlow(TimelineDensity.DAYS)
     val density: StateFlow<TimelineDensity> = _density.asStateFlow()
+
+    private val _categoryFilter = MutableStateFlow(TimelineCategoryFilter.ALL)
+    val categoryFilter: StateFlow<TimelineCategoryFilter> = _categoryFilter.asStateFlow()
 
     private val _selectedIds = MutableStateFlow<Set<String>>(emptySet())
     val selectedIds: StateFlow<Set<String>> = _selectedIds.asStateFlow()
@@ -34,11 +48,17 @@ class TimelineViewModel(
     val isSelectionMode: StateFlow<Boolean> = _isSelectionMode.asStateFlow()
 
     val uiState: StateFlow<TimelineUiState> = repository.getMediaFlow()
-        .combine(MutableStateFlow(false)) { items, _ ->
-            val groups = repository.getTimelineGroups()
+        .combine(_categoryFilter) { items, filter ->
+            val filtered = when (filter) {
+                TimelineCategoryFilter.ALL -> items
+                TimelineCategoryFilter.PHOTOS -> items.filter { it.mediaType == MediaType.IMAGE }
+                TimelineCategoryFilter.VIDEOS -> items.filter { it.mediaType == MediaType.VIDEO }
+                TimelineCategoryFilter.FAVORITES -> items.filter { it.isFavorite }
+            }
+            val groups = grouper(filtered)
             TimelineUiState(
                 groups = groups,
-                totalCount = items.size,
+                totalCount = filtered.size,
                 isLoading = false
             )
         }.stateIn(
@@ -49,6 +69,10 @@ class TimelineViewModel(
 
     fun setDensity(newDensity: TimelineDensity) {
         _density.value = newDensity
+    }
+
+    fun setCategoryFilter(filter: TimelineCategoryFilter) {
+        _categoryFilter.value = filter
     }
 
     fun toggleSelection(id: String) {

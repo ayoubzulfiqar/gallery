@@ -16,14 +16,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,15 +44,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ayoubzulfiqar.gallery.ui.gesture.PinchDensityState
 import com.ayoubzulfiqar.gallery.ui.gesture.TimelineDensity
+import com.ayoubzulfiqar.gallery.ui.theme.GalleryIcons
+import com.ayoubzulfiqar.gallery.ui.theme.ThemeMode
 
 @Composable
 fun TimelineScreen(
     viewModel: TimelineViewModel,
     onMediaClick: (mediaId: String) -> Unit,
+    themeMode: ThemeMode = ThemeMode.SYSTEM,
+    onToggleTheme: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val density by viewModel.density.collectAsState()
+    val categoryFilter by viewModel.categoryFilter.collectAsState()
     val selectedIds by viewModel.selectedIds.collectAsState()
     val isSelectionMode by viewModel.isSelectionMode.collectAsState()
 
@@ -88,7 +97,7 @@ fun TimelineScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .windowInsetsPadding(WindowInsets.statusBars)
-                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                    .padding(horizontal = 20.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -97,54 +106,114 @@ fun TimelineScreen(
                         text = "Photos",
                         style = MaterialTheme.typography.headlineMedium.copy(
                             fontWeight = FontWeight.ExtraBold,
-                            fontSize = 30.sp,
+                            fontSize = 28.sp,
                             letterSpacing = (-0.5).sp,
-                            color = Color.White
+                            color = MaterialTheme.colorScheme.onBackground
                         )
                     )
                     if (uiState.totalCount > 0) {
                         Text(
                             text = "${uiState.totalCount} items",
                             style = MaterialTheme.typography.bodySmall.copy(
-                                color = Color.White.copy(alpha = 0.5f),
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f),
                                 fontSize = 12.sp
                             )
                         )
                     }
                 }
 
-                // Modern Segmented Density Selector
                 Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(Color.White.copy(alpha = 0.08f))
-                        .padding(3.dp),
-                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    TimelineDensity.values().forEach { d ->
-                        val isSelected = density == d
-                        val bgColor by animateColorAsState(
-                            if (isSelected) Color(0xFF00B4D8) else Color.Transparent
-                        )
-                        val textColor by animateColorAsState(
-                            if (isSelected) Color.White else Color.White.copy(alpha = 0.6f)
-                        )
-
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(bgColor)
-                                .clickable { viewModel.setDensity(d) }
-                                .padding(horizontal = 10.dp, vertical = 6.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = d.name.lowercase().replaceFirstChar { it.uppercase() },
-                                fontSize = 11.sp,
-                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                color = textColor
-                            )
+                    // Theme Quick-Toggle Button
+                    IconButton(
+                        onClick = onToggleTheme,
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.08f))
+                    ) {
+                        val icon = when (themeMode) {
+                            ThemeMode.LIGHT -> GalleryIcons.Sun
+                            ThemeMode.DARK -> GalleryIcons.Moon
+                            ThemeMode.SYSTEM -> GalleryIcons.AutoTheme
                         }
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = "Toggle Theme Mode",
+                            tint = when (themeMode) {
+                                ThemeMode.LIGHT -> Color(0xFFFFB703)
+                                ThemeMode.DARK -> Color(0xFF80D4FF)
+                                ThemeMode.SYSTEM -> MaterialTheme.colorScheme.onBackground
+                            },
+                            modifier = Modifier.size(19.dp)
+                        )
+                    }
+
+                    // Modern Segmented Density Selector
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(Color.White.copy(alpha = 0.08f))
+                            .padding(3.dp),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        TimelineDensity.values().forEach { d ->
+                            val isSelected = density == d
+                            val bgColor by animateColorAsState(
+                                if (isSelected) Color(0xFF00B4D8) else Color.Transparent
+                            )
+                            val textColor by animateColorAsState(
+                                if (isSelected) Color.White else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                            )
+
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(bgColor)
+                                    .clickable { viewModel.setDensity(d) }
+                                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = d.name.lowercase().replaceFirstChar { it.uppercase() },
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                    color = textColor
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Category Filter Chips
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TimelineCategoryFilter.values().forEach { cat ->
+                    val isSelected = categoryFilter == cat
+                    val bg = if (isSelected) Color(0xFF00B4D8) else Color.White.copy(alpha = 0.08f)
+                    val textCol = if (isSelected) Color.White else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.65f)
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(bg)
+                            .clickable { viewModel.setCategoryFilter(cat) }
+                            .padding(horizontal = 14.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = cat.name.lowercase().replaceFirstChar { it.uppercase() },
+                            color = textCol,
+                            fontSize = 12.sp,
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                        )
                     }
                 }
             }
@@ -172,7 +241,7 @@ fun TimelineScreen(
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 15.sp,
-                                    color = Color.White.copy(alpha = 0.85f)
+                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.85f)
                                 ),
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
                             )
