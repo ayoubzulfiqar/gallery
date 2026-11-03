@@ -1,30 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path android:pathData="M31,63.928c0,0 6.4,-11 12.1,-13.1c7.2,-2.6 26,-1.4 26,-1.4l38.1,38.1L107,108.928l-32,-1L31,63.928z">
+
+    <!-- Outer Precision Chamfered Bezel Rings -->
+    <path
+        android:pathData="M54,54m-33.5,0a33.5,33.5 0 1,0 67,0a33.5,33.5 0 1,0 -67,0"
+        android:strokeWidth="2.5"
+        android:strokeColor="#222B3B" />
+    <path
+        android:pathData="M54,54m-31,0a31,31 0 1,0 62,0a31,31 0 1,0 -62,0"
+        android:strokeWidth="0.8"
+        android:strokeColor="#BF485C7F" />
+
+    <!-- Base Sensor Chamber -->
+    <path
+        android:pathData="M54,54m-28.5,0a28.5,28.5 0 1,0 57,0a28.5,28.5 0 1,0 -57,0"
+        android:fillColor="#090D15" />
+
+    <!-- Aperture Blade 1 -->
+    <path
+        android:pathData="M 61.00,54.00 L 57.50,60.06 Q 58.44,74.91 45.19,81.11 A 28.50 28.50 0 0 0 70.75,77.06 Q 69.62,60.96 61.00,54.00 Z"
+        android:strokeWidth="0.75"
+        android:strokeColor="#080C14">
         <aapt:attr name="android:fillColor">
             <gradient
-                android:endX="85.84757"
-                android:endY="92.4963"
-                android:startX="42.9492"
-                android:startY="49.59793"
+                android:startX="78.00"
+                android:startY="54.00"
+                android:endX="30.00"
+                android:endY="54.00"
                 android:type="linear">
-                <item
-                    android:color="#44000000"
-                    android:offset="0.0" />
-                <item
-                    android:color="#00000000"
-                    android:offset="1.0" />
+                <item android:offset="0.0" android:color="#00F5FF" />
+                <item android:offset="1.0" android:color="#0070F3" />
             </gradient>
         </aapt:attr>
     </path>
+
+    <!-- Aperture Blade 2 -->
     <path
-        android:fillColor="#FFFFFF"
-        android:fillType="nonZero"
-        android:pathData="M65.3,45.828l3.8,-6.6c0.2,-0.4 0.1,-0.9 -0.3,-1.1c-0.4,-0.2 -0.9,-0.1 -1.1,0.3l-3.9,6.7c-6.3,-2.8 -13.4,-2.8 -19.7,0l-3.9,-6.7c-0.2,-0.4 -0.7,-0.5 -1.1,-0.3C38.8,38.328 38.7,38.828 38.9,39.228l3.8,6.6C36.2,49.428 31.7,56.028 31,63.928h46C76.3,56.028 71.8,49.428 65.3,45.828zM43.4,57.328c-0.8,0 -1.5,-0.5 -1.8,-1.2c-0.3,-0.7 -0.1,-1.5 0.4,-2.1c0.5,-0.5 1.4,-0.7 2.1,-0.4c0.7,0.3 1.2,1 1.2,1.8C45.3,56.528 44.5,57.328 43.4,57.328L43.4,57.328zM64.6,57.328c-0.8,0 -1.5,-0.5 -1.8,-1.2s-0.1,-1.5 0.4,-2.1c0.5,-0.5 1.4,-0.7 2.1,-0.4c0.7,0.3 1.2,1 1.2,1.8C66.5,56.528 65.6,57.328 64.6,57.328L64.6,57.328z"
-        android:strokeWidth="1"
-        android:strokeColor="#00000000" />
+        android:pathData="M 57.50,60.06 L 50.50,60.06 Q 38.12,68.30 26.12,59.93 A 28.50 28.50 0 0 0 42.41,80.04 Q 55.79,71.01 57.50,60.06 Z"
+        android:strokeWidth="0.75"
+        android:strokeColor="#080C14">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="66.00"
+                android:startY="74.78"
+                android:endX="42.00"
+                android:endY="33.22"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#00DF89" />
+                <item android:offset="1.0" android:color="#00916E" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Aperture Blade 3 -->
+    <path
+        android:pathData="M 50.50,60.06 L 47.00,54.00 Q 33.67,47.39 34.93,32.82 A 28.50 28.50 0 0 0 25.66,56.98 Q 40.17,64.05 50.50,60.06 Z"
+        android:strokeWidth="0.75"
+        android:strokeColor="#080C14">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="42.00"
+                android:startY="74.78"
+                android:endX="66.00"
+                android:endY="33.22"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FACC15" />
+                <item android:offset="1.0" android:color="#EA580C" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Aperture Blade 4 -->
+    <path
+        android:pathData="M 47.00,54.00 L 50.50,47.94 Q 49.56,33.09 62.81,26.89 A 28.50 28.50 0 0 0 37.25,30.94 Q 38.38,47.04 47.00,54.00 Z"
+        android:strokeWidth="0.75"
+        android:strokeColor="#080C14">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="30.00"
+                android:startY="54.00"
+                android:endX="78.00"
+                android:endY="54.00"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FF3366" />
+                <item android:offset="1.0" android:color="#D90429" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Aperture Blade 5 -->
+    <path
+        android:pathData="M 50.50,47.94 L 57.50,47.94 Q 69.88,39.70 81.88,48.07 A 28.50 28.50 0 0 0 65.59,27.96 Q 52.21,36.99 50.50,47.94 Z"
+        android:strokeWidth="0.75"
+        android:strokeColor="#080C14">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="42.00"
+                android:startY="33.22"
+                android:endX="66.00"
+                android:endY="74.78"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#E040FB" />
+                <item android:offset="1.0" android:color="#7928CA" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Aperture Blade 6 -->
+    <path
+        android:pathData="M 57.50,47.94 L 61.00,54.00 Q 74.33,60.61 73.07,75.18 A 28.50 28.50 0 0 0 82.34,51.02 Q 67.83,43.95 57.50,47.94 Z"
+        android:strokeWidth="0.75"
+        android:strokeColor="#080C14">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="66.00"
+                android:startY="33.22"
+                android:endX="42.00"
+                android:endY="74.78"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#7C3AED" />
+                <item android:offset="1.0" android:color="#2563EB" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Central Optical Element -->
+    <path
+        android:pathData="M54,54m-5.2,0a5.2,5.2 0 1,0 10.4,0a5.2,5.2 0 1,0 -10.4,0"
+        android:fillColor="#0A0F1A"
+        android:strokeWidth="1.2"
+        android:strokeColor="#D900F5FF" />
+    <path
+        android:pathData="M54,54m-2.6,0a2.6,2.6 0 1,0 5.2,0a2.6,2.6 0 1,0 -5.2,0"
+        android:fillColor="#00E5FF" />
+    <path
+        android:pathData="M53.2,53.2m-1.0,0a1.0,1.0 0 1,0 2.0,0a1.0,1.0 0 1,0 -2.0,0"
+        android:fillColor="#F2FFFFFF" />
+
+    <!-- Specular Lens Glint Reflection -->
+    <path
+        android:pathData="M 28,54 A 26,26 0 0,1 54,28 A 28,28 0 0,0 30,52 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="28"
+                android:startY="28"
+                android:endX="54"
+                android:endY="54"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#BFFFFFFF" />
+                <item android:offset="0.35" android:color="#26FFFFFF" />
+                <item android:offset="1.0" android:color="#00FFFFFF" />
+            </gradient>
+        </aapt:attr>
+    </path>
 </vector>
