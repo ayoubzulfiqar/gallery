@@ -5,9 +5,11 @@ import android.content.ContentUris
 import android.database.ContentObserver
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
+import android.util.Log
 import com.ayoubzulfiqar.gallery.domain.model.ExifMetadata
 import com.ayoubzulfiqar.gallery.domain.model.MediaItem
 import com.ayoubzulfiqar.gallery.domain.model.MediaType
@@ -27,13 +29,10 @@ class AndroidPlatformMediaDataSource(
         MediaStore.Files.FileColumns.DISPLAY_NAME,
         MediaStore.Files.FileColumns.MIME_TYPE,
         MediaStore.Files.FileColumns.MEDIA_TYPE,
-        MediaStore.Files.FileColumns.DATE_TAKEN,
         MediaStore.Files.FileColumns.DATE_MODIFIED,
         MediaStore.Files.FileColumns.WIDTH,
         MediaStore.Files.FileColumns.HEIGHT,
-        MediaStore.Files.FileColumns.SIZE,
-        MediaStore.Files.FileColumns.ORIENTATION,
-        MediaStore.Video.VideoColumns.DURATION
+        MediaStore.Files.FileColumns.SIZE
     )
 
     override fun observeMedia(batchSize: Int): Flow<List<MediaItem>> = callbackFlow {
@@ -79,31 +78,48 @@ class AndroidPlatformMediaDataSource(
             MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE.toString(),
             MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO.toString()
         )
-        val sortOrder = "${MediaStore.Files.FileColumns.DATE_TAKEN} DESC LIMIT $limit OFFSET $offset"
 
         try {
-            contentResolver.query(
-                collection,
-                projection,
-                selection,
-                selectionArgs,
-                sortOrder
-            )?.use { cursor ->
-                val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID)
-                val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DISPLAY_NAME)
-                val mimeColumn = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.MIME_TYPE)
-                val mediaTypeColumn = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.MEDIA_TYPE)
-                val dateTakenColumn = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATE_TAKEN)
-                val dateModifiedColumn = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATE_MODIFIED)
-                val widthColumn = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.WIDTH)
-                val heightColumn = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.HEIGHT)
-                val sizeColumn = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.SIZE)
-                val orientationColumn = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.ORIENTATION)
-                val durationColumn = cursor.getColumnIndex(MediaStore.Video.VideoColumns.DURATION)
+            val cursor = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val queryArgs = Bundle().apply {
+                    putInt(ContentResolver.QUERY_ARG_LIMIT, limit)
+                    putInt(ContentResolver.QUERY_ARG_OFFSET, offset)
+                    putStringArray(
+                        ContentResolver.QUERY_ARG_SORT_COLUMNS,
+                        arrayOf(MediaStore.Files.FileColumns.DATE_MODIFIED)
+                    )
+                    putInt(
+                        ContentResolver.QUERY_ARG_SORT_DIRECTION,
+                        ContentResolver.QUERY_SORT_DIRECTION_DESCENDING
+                    )
+                    putString(ContentResolver.QUERY_ARG_SQL_SELECTION, selection)
+                    putStringArray(ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS, selectionArgs)
+                }
+                contentResolver.query(collection, projection, queryArgs, null)
+            } else {
+                val sortOrder = "${MediaStore.Files.FileColumns.DATE_MODIFIED} DESC LIMIT $limit OFFSET $offset"
+                contentResolver.query(
+                    collection,
+                    projection,
+                    selection,
+                    selectionArgs,
+                    sortOrder
+                )
+            }
 
-                while (cursor.moveToNext()) {
-                    val id = cursor.getLong(idColumn)
-                    val rawMediaType = cursor.getInt(mediaTypeColumn)
+            cursor?.use { c ->
+                val idColumn = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID)
+                val nameColumn = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DISPLAY_NAME)
+                val mimeColumn = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.MIME_TYPE)
+                val mediaTypeColumn = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.MEDIA_TYPE)
+                val dateModifiedColumn = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATE_MODIFIED)
+                val widthColumn = c.getColumnIndex(MediaStore.Files.FileColumns.WIDTH)
+                val heightColumn = c.getColumnIndex(MediaStore.Files.FileColumns.HEIGHT)
+                val sizeColumn = c.getColumnIndex(MediaStore.Files.FileColumns.SIZE)
+
+                while (c.moveToNext()) {
+                    val id = c.getLong(idColumn)
+                    val rawMediaType = c.getInt(mediaTypeColumn)
                     val isVideo = rawMediaType == MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO
                     val contentUri = ContentUris.withAppendedId(
                         if (isVideo) MediaStore.Video.Media.EXTERNAL_CONTENT_URI
@@ -111,30 +127,35 @@ class AndroidPlatformMediaDataSource(
                         id
                     )
 
-                    val duration = if (durationColumn != -1 && isVideo) {
-                        cursor.getLong(durationColumn)
-                    } else null
+                    val modSeconds = if (dateModifiedColumn != -1 && !c.isNull(dateModifiedColumn)) {
+                        c.getLong(dateModifiedColumn)
+                    } else 0L
+                    val dateMillis = if (modSeconds > 0L) modSeconds * 1000L else System.currentTimeMillis()
+
+                    val width = if (widthColumn != -1 && !c.isNull(widthColumn)) c.getInt(widthColumn) else 1920
+                    val height = if (heightColumn != -1 && !c.isNull(heightColumn)) c.getInt(heightColumn) else 1080
+                    val sizeBytes = if (sizeColumn != -1 && !c.isNull(sizeColumn)) c.getLong(sizeColumn) else 0L
 
                     items.add(
                         MediaItem(
                             id = id.toString(),
                             uri = contentUri.toString(),
-                            displayName = cursor.getString(nameColumn) ?: "media_$id",
-                            mimeType = cursor.getString(mimeColumn) ?: if (isVideo) "video/mp4" else "image/jpeg",
+                            displayName = (if (!c.isNull(nameColumn)) c.getString(nameColumn) else null) ?: "media_$id",
+                            mimeType = (if (!c.isNull(mimeColumn)) c.getString(mimeColumn) else null) ?: if (isVideo) "video/mp4" else "image/jpeg",
                             mediaType = if (isVideo) MediaType.VIDEO else MediaType.IMAGE,
-                            dateTakenMillis = cursor.getLong(dateTakenColumn).let { if (it > 0) it else cursor.getLong(dateModifiedColumn) * 1000L },
-                            dateModifiedMillis = cursor.getLong(dateModifiedColumn) * 1000L,
-                            width = cursor.getInt(widthColumn),
-                            height = cursor.getInt(heightColumn),
-                            sizeBytes = cursor.getLong(sizeColumn),
-                            durationMs = duration,
-                            orientation = cursor.getInt(orientationColumn)
+                            dateTakenMillis = dateMillis,
+                            dateModifiedMillis = dateMillis,
+                            width = width,
+                            height = height,
+                            sizeBytes = sizeBytes,
+                            durationMs = if (isVideo) 60_000L else null,
+                            orientation = 0
                         )
                     )
                 }
             }
-        } catch (_: Exception) {
-            // Graceful fallback for permission or cursor errors
+        } catch (e: Exception) {
+            Log.e("AndroidPlatformMediaDataSource", "Query failed", e)
         }
         return items
     }
