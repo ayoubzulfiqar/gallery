@@ -12,6 +12,7 @@ sealed class GalleryDestination {
     data class Editor(val mediaId: String) : GalleryDestination()
     object Vault : GalleryDestination()
     object Albums : GalleryDestination()
+    data class FolderDetail(val bucketId: String, val folderName: String) : GalleryDestination()
     object Explore : GalleryDestination()
 }
 

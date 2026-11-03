@@ -27,7 +27,17 @@ data class MediaItem(
     val isTrashed: Boolean = false,
     val isVaulted: Boolean = false,
     val albumIds: Set<String> = emptySet(),
-    val tags: Set<String> = emptySet()
+    val tags: Set<String> = emptySet(),
+    val bucketId: String? = null,
+    val bucketName: String? = null
+)
+
+data class MediaFolder(
+    val id: String,
+    val name: String,
+    val coverUri: String,
+    val itemCount: Int,
+    val items: List<MediaItem>
 )
 
 data class MediaTimelineGroup(

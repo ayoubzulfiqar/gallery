@@ -50,6 +50,7 @@ fun LightboxViewerScreen(
     viewModel: ViewerViewModel,
     onBack: UnitCallback = {},
     onEdit: (mediaId: String) -> Unit = {},
+    onPlayVideo: (contentUri: String) -> Unit = {},
     onShowExif: UnitCallback = {},
     onGoogleLens: (contentUri: String) -> Unit = {},
     onSetAsWallpaper: (contentUri: String) -> Unit = {},
@@ -105,7 +106,10 @@ fun LightboxViewerScreen(
                         .windowInsetsPadding(WindowInsets.navigationBars)
                         .padding(bottom = 88.dp)
                 ) {
-                    VideoPlayerOverlay(durationMs = item.durationMs)
+                    VideoPlayerOverlay(
+                        durationMs = item.durationMs,
+                        onPlayClick = { onPlayVideo(item.uri) }
+                    )
                 }
             }
         }
@@ -196,11 +200,20 @@ fun LightboxViewerScreen(
                     tint = Color(0xFF00B4D8),
                     onClick = { item?.let { onGoogleLens(it.uri) } }
                 )
-                ActionPillButton(
-                    icon = GalleryIcons.EditPen,
-                    label = "Edit",
-                    onClick = { item?.let { onEdit(it.id) } }
-                )
+                if (item?.mediaType == MediaType.VIDEO) {
+                    ActionPillButton(
+                        icon = GalleryIcons.Play,
+                        label = "Play",
+                        tint = Color(0xFF00B4D8),
+                        onClick = { item?.let { onPlayVideo(it.uri) } }
+                    )
+                } else {
+                    ActionPillButton(
+                        icon = GalleryIcons.EditPen,
+                        label = "Edit",
+                        onClick = { item?.let { onEdit(it.id) } }
+                    )
+                }
                 ActionPillButton(
                     icon = GalleryIcons.ShareArrow,
                     label = "Share",

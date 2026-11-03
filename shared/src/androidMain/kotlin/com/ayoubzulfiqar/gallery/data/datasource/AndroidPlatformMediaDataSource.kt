@@ -32,7 +32,9 @@ class AndroidPlatformMediaDataSource(
         MediaStore.Files.FileColumns.DATE_MODIFIED,
         MediaStore.Files.FileColumns.WIDTH,
         MediaStore.Files.FileColumns.HEIGHT,
-        MediaStore.Files.FileColumns.SIZE
+        MediaStore.Files.FileColumns.SIZE,
+        "bucket_id",
+        "bucket_display_name"
     )
 
     override fun observeMedia(batchSize: Int): Flow<List<MediaItem>> = callbackFlow {
@@ -116,6 +118,8 @@ class AndroidPlatformMediaDataSource(
                 val widthColumn = c.getColumnIndex(MediaStore.Files.FileColumns.WIDTH)
                 val heightColumn = c.getColumnIndex(MediaStore.Files.FileColumns.HEIGHT)
                 val sizeColumn = c.getColumnIndex(MediaStore.Files.FileColumns.SIZE)
+                val bucketIdColumn = c.getColumnIndex("bucket_id")
+                val bucketNameColumn = c.getColumnIndex("bucket_display_name")
 
                 while (c.moveToNext()) {
                     val id = c.getLong(idColumn)
@@ -135,6 +139,8 @@ class AndroidPlatformMediaDataSource(
                     val width = if (widthColumn != -1 && !c.isNull(widthColumn)) c.getInt(widthColumn) else 1920
                     val height = if (heightColumn != -1 && !c.isNull(heightColumn)) c.getInt(heightColumn) else 1080
                     val sizeBytes = if (sizeColumn != -1 && !c.isNull(sizeColumn)) c.getLong(sizeColumn) else 0L
+                    val bucketId = if (bucketIdColumn != -1 && !c.isNull(bucketIdColumn)) c.getString(bucketIdColumn) else null
+                    val bucketName = if (bucketNameColumn != -1 && !c.isNull(bucketNameColumn)) c.getString(bucketNameColumn) else null
 
                     items.add(
                         MediaItem(
@@ -149,7 +155,9 @@ class AndroidPlatformMediaDataSource(
                             height = height,
                             sizeBytes = sizeBytes,
                             durationMs = if (isVideo) 60_000L else null,
-                            orientation = 0
+                            orientation = 0,
+                            bucketId = bucketId,
+                            bucketName = bucketName
                         )
                     )
                 }

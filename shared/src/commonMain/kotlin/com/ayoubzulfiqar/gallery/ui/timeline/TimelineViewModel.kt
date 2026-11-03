@@ -2,6 +2,7 @@ package com.ayoubzulfiqar.gallery.ui.timeline
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ayoubzulfiqar.gallery.domain.model.MediaFolder
 import com.ayoubzulfiqar.gallery.domain.model.MediaItem
 import com.ayoubzulfiqar.gallery.domain.model.MediaTimelineGroup
 import com.ayoubzulfiqar.gallery.domain.model.MediaType
@@ -35,7 +36,7 @@ class TimelineViewModel(
 
     private val grouper = GroupMediaByTimelineUseCase()
 
-    private val _density = MutableStateFlow(TimelineDensity.DAYS)
+    private val _density = MutableStateFlow(TimelineDensity.MONTHS)
     val density: StateFlow<TimelineDensity> = _density.asStateFlow()
 
     private val _categoryFilter = MutableStateFlow(TimelineCategoryFilter.ALL)
@@ -47,25 +48,35 @@ class TimelineViewModel(
     private val _isSelectionMode = MutableStateFlow(false)
     val isSelectionMode: StateFlow<Boolean> = _isSelectionMode.asStateFlow()
 
-    val uiState: StateFlow<TimelineUiState> = repository.getMediaFlow()
-        .combine(_categoryFilter) { items, filter ->
-            val filtered = when (filter) {
-                TimelineCategoryFilter.ALL -> items
-                TimelineCategoryFilter.PHOTOS -> items.filter { it.mediaType == MediaType.IMAGE }
-                TimelineCategoryFilter.VIDEOS -> items.filter { it.mediaType == MediaType.VIDEO }
-                TimelineCategoryFilter.FAVORITES -> items.filter { it.isFavorite }
-            }
-            val groups = grouper(filtered)
-            TimelineUiState(
-                groups = groups,
-                totalCount = filtered.size,
-                isLoading = false
-            )
-        }.stateIn(
+    val quickFolders: StateFlow<List<MediaFolder>> = repository.getFoldersFlow()
+        .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = TimelineUiState(isLoading = true)
+            initialValue = emptyList()
         )
+
+    val uiState: StateFlow<TimelineUiState> = combine(
+        repository.getMediaFlow(),
+        _categoryFilter,
+        _density
+    ) { items, filter, currentDensity ->
+        val filtered = when (filter) {
+            TimelineCategoryFilter.ALL -> items
+            TimelineCategoryFilter.PHOTOS -> items.filter { it.mediaType == MediaType.IMAGE }
+            TimelineCategoryFilter.VIDEOS -> items.filter { it.mediaType == MediaType.VIDEO }
+            TimelineCategoryFilter.FAVORITES -> items.filter { it.isFavorite }
+        }
+        val groups = grouper(filtered, currentDensity)
+        TimelineUiState(
+            groups = groups,
+            totalCount = filtered.size,
+            isLoading = false
+        )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = TimelineUiState(isLoading = true)
+    )
 
     fun setDensity(newDensity: TimelineDensity) {
         _density.value = newDensity

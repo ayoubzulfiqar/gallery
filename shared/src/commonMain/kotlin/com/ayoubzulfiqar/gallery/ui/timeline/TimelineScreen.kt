@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -39,9 +40,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ayoubzulfiqar.gallery.domain.model.MediaType
+import com.ayoubzulfiqar.gallery.ui.common.AsyncMediaImage
 import com.ayoubzulfiqar.gallery.ui.gesture.PinchDensityState
 import com.ayoubzulfiqar.gallery.ui.gesture.TimelineDensity
 import com.ayoubzulfiqar.gallery.ui.theme.GalleryIcons
@@ -51,6 +55,8 @@ import com.ayoubzulfiqar.gallery.ui.theme.ThemeMode
 fun TimelineScreen(
     viewModel: TimelineViewModel,
     onMediaClick: (mediaId: String) -> Unit,
+    onVideoClick: (mediaId: String, uri: String) -> Unit = { _, _ -> },
+    onFolderClick: (bucketId: String, folderName: String) -> Unit = { _, _ -> },
     themeMode: ThemeMode = ThemeMode.SYSTEM,
     onToggleTheme: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -58,6 +64,7 @@ fun TimelineScreen(
     val uiState by viewModel.uiState.collectAsState()
     val density by viewModel.density.collectAsState()
     val categoryFilter by viewModel.categoryFilter.collectAsState()
+    val quickFolders by viewModel.quickFolders.collectAsState()
     val selectedIds by viewModel.selectedIds.collectAsState()
     val isSelectionMode by viewModel.isSelectionMode.collectAsState()
 
@@ -233,14 +240,61 @@ fun TimelineScreen(
                         bottom = navBarBottomPadding + 92.dp
                     )
                 ) {
+                    // Google Gallery Go Quick-Jump Folder Carousel
+                    if (quickFolders.isNotEmpty() && categoryFilter == TimelineCategoryFilter.ALL) {
+                        item(span = { GridItemSpan(responsiveColumns) }) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 10.dp, horizontal = 4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(14.dp)
+                            ) {
+                                quickFolders.take(4).forEach { folder ->
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        modifier = Modifier
+                                            .width(82.dp)
+                                            .clip(RoundedCornerShape(16.dp))
+                                            .clickable { onFolderClick(folder.id, folder.name) }
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(76.dp)
+                                                .clip(RoundedCornerShape(16.dp))
+                                                .background(Color(0xFF1B222C))
+                                        ) {
+                                            AsyncMediaImage(
+                                                uri = folder.coverUri,
+                                                contentDescription = folder.name,
+                                                modifier = Modifier.fillMaxSize(),
+                                                isThumbnail = true,
+                                                contentScale = ContentScale.Crop
+                                            )
+                                        }
+                                        Text(
+                                            text = folder.name,
+                                            style = MaterialTheme.typography.bodySmall.copy(
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                color = MaterialTheme.colorScheme.onBackground
+                                            ),
+                                            maxLines = 1,
+                                            modifier = Modifier.padding(top = 4.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     uiState.groups.forEach { group ->
-                        // Header per timeline group
+                        // Header per timeline group (e.g., "November 2026")
                         item(span = { GridItemSpan(responsiveColumns) }) {
                             Text(
                                 text = group.title,
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp,
+                                    fontSize = 16.sp,
                                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.85f)
                                 ),
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
@@ -257,6 +311,8 @@ fun TimelineScreen(
                                 onClick = {
                                     if (isSelectionMode) {
                                         viewModel.toggleSelection(item.id)
+                                    } else if (item.mediaType == MediaType.VIDEO) {
+                                        onVideoClick(item.id, item.uri)
                                     } else {
                                         onMediaClick(item.id)
                                     }

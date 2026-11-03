@@ -21,7 +21,24 @@ class AndroidPlatformActionHandler(
     override fun launchGoogleLens(contentUri: String): Boolean {
         val parsedUri = Uri.parse(contentUri)
 
-        // Attempt 1: Native Google Lens standalone package
+        // Attempt 1: Direct Google Search Image / Lens Share Entry Point (bypasses any share dialog)
+        try {
+            val lensShareIntent = Intent(Intent.ACTION_SEND).apply {
+                component = ComponentName(
+                    "com.google.android.googlequicksearchbox",
+                    "com.google.android.apps.search.lens.LensShareEntryPointActivity"
+                )
+                type = "image/*"
+                putExtra(Intent.EXTRA_STREAM, parsedUri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            if (lensShareIntent.resolveActivity(context.packageManager) != null) {
+                context.startActivity(lensShareIntent)
+                return true
+            }
+        } catch (_: Exception) {}
+
+        // Attempt 2: Standalone Google Lens app (com.google.ar.lens)
         try {
             val lensIntent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(parsedUri, "image/*")
@@ -34,35 +51,63 @@ class AndroidPlatformActionHandler(
             }
         } catch (_: Exception) {}
 
-        // Attempt 2: Google Search app Lens Activity
+        // Attempt 3: Direct Google Search app package target (without chooser)
         try {
-            val searchLensIntent = Intent().apply {
-                component = ComponentName(
-                    "com.google.android.googlequicksearchbox",
-                    "com.google.android.apps.search.lens.LensActivity"
-                )
-                setDataAndType(parsedUri, "image/*")
+            val directSearchIntent = Intent(Intent.ACTION_SEND).apply {
+                setPackage("com.google.android.googlequicksearchbox")
+                type = "image/*"
+                putExtra(Intent.EXTRA_STREAM, parsedUri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
             }
-            if (searchLensIntent.resolveActivity(context.packageManager) != null) {
-                context.startActivity(searchLensIntent)
+            if (directSearchIntent.resolveActivity(context.packageManager) != null) {
+                context.startActivity(directSearchIntent)
                 return true
             }
         } catch (_: Exception) {}
 
-        // Attempt 3: General visual search / share intent
+        // Attempt 4: Fallback to system chooser
         return try {
             val genericIntent = Intent(Intent.ACTION_SEND).apply {
                 type = "image/*"
                 putExtra(Intent.EXTRA_STREAM, parsedUri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
             }
-            val chooser = Intent.createChooser(genericIntent, "Scan with Google Lens").apply {
+            val chooser = Intent.createChooser(genericIntent, "Search with Google Lens").apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             context.startActivity(chooser)
             true
         } catch (_: Exception) {
+            false
+        }
+    }
+
+    override fun playVideo(contentUri: String): Boolean {
+        android.util.Log.d("GalleryAction", "playVideo invoked for URI: $contentUri")
+        val parsedUri = Uri.parse(contentUri)
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(parsedUri, "video/*")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+
+        // Direct default player launch (e.g. MX Player Pro, VLC, or System Player)
+        try {
+            context.startActivity(intent)
+            android.util.Log.d("GalleryAction", "playVideo directly launched default video player")
+            return true
+        } catch (e: Exception) {
+            android.util.Log.w("GalleryAction", "Direct launch failed, falling back to chooser", e)
+        }
+
+        // Fallback to system chooser if no default player is assigned
+        return try {
+            val chooser = Intent.createChooser(intent, "Play Video").apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(chooser)
+            true
+        } catch (e: Exception) {
+            android.util.Log.e("GalleryAction", "playVideo failed completely", e)
             false
         }
     }

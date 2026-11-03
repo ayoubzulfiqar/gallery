@@ -19,8 +19,8 @@ class TimelineViewModelTest {
         val repo = DefaultMediaRepository(platformSource, LocalMetadataStore())
         val viewModel = TimelineViewModel(repo)
 
-        viewModel.setDensity(TimelineDensity.MONTHS)
-        assertEquals(TimelineDensity.MONTHS, viewModel.density.value)
+        viewModel.setDensity(TimelineDensity.YEARS)
+        assertEquals(TimelineDensity.YEARS, viewModel.density.value)
 
         viewModel.toggleSelection("item_1")
         assertTrue(viewModel.selectedIds.value.contains("item_1"))

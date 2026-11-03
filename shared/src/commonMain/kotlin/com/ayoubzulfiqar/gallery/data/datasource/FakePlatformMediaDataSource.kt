@@ -17,6 +17,11 @@ class FakePlatformMediaDataSource : PlatformMediaDataSource {
         val generated = (0 until count).map { i ->
             val isVideo = i > 0 && i % 10 == 0
             val dayOffset = (i / 15) * dayMillis
+            val folderName = when (i % 3) {
+                0 -> "Camera"
+                1 -> "Screenshots"
+                else -> "Download"
+            }
             MediaItem(
                 id = "media_$i",
                 uri = "file:///storage/emulated/0/DCIM/Camera/IMG_20261103_${i.toString().padStart(4, '0')}.${if (isVideo) "mp4" else "jpg"}",
@@ -30,7 +35,9 @@ class FakePlatformMediaDataSource : PlatformMediaDataSource {
                 sizeBytes = if (isVideo) 45_000_000L else 4_200_000L,
                 durationMs = if (isVideo) 15_400L else null,
                 latitude = 37.7749 + (i % 5) * 0.01,
-                longitude = -122.4194 + (i % 5) * 0.01
+                longitude = -122.4194 + (i % 5) * 0.01,
+                bucketId = "bucket_${folderName.lowercase()}",
+                bucketName = folderName
             )
         }
         _mediaFlow.value = generated

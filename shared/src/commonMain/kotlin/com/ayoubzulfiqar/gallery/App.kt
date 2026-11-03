@@ -45,6 +45,9 @@ import com.ayoubzulfiqar.gallery.platform.NoOpPlatformActionHandler
 import com.ayoubzulfiqar.gallery.platform.PlatformActionHandler
 import com.ayoubzulfiqar.gallery.security.FakeMetadataStripper
 import com.ayoubzulfiqar.gallery.security.MetadataStripper
+import com.ayoubzulfiqar.gallery.ui.albums.AlbumsScreen
+import com.ayoubzulfiqar.gallery.ui.albums.AlbumsViewModel
+import com.ayoubzulfiqar.gallery.ui.albums.FolderDetailScreen
 import com.ayoubzulfiqar.gallery.ui.editor.PhotoEditorScreen
 import com.ayoubzulfiqar.gallery.ui.editor.PhotoEditorViewModel
 import com.ayoubzulfiqar.gallery.ui.exif.ExifInspectorSheet
@@ -105,6 +108,7 @@ fun App(
         val vaultRepository = remember { DefaultVaultRepository() }
 
         val timelineViewModel = remember(mediaRepository) { TimelineViewModel(mediaRepository) }
+        val albumsViewModel = remember(mediaRepository) { AlbumsViewModel(mediaRepository) }
         val vaultViewModel = remember(vaultRepository) { VaultViewModel(vaultRepository) }
 
         var activeExifItem by remember { mutableStateOf<ExifMetadata?>(null) }
@@ -122,6 +126,12 @@ fun App(
                         onMediaClick = { id ->
                             navState.navigateTo(GalleryDestination.Viewer(id))
                         },
+                        onVideoClick = { _, uri ->
+                            activeActions.playVideo(uri)
+                        },
+                        onFolderClick = { bucketId, folderName ->
+                            navState.navigateTo(GalleryDestination.FolderDetail(bucketId, folderName))
+                        },
                         themeMode = themeMode,
                         onToggleTheme = { localStore.cycleThemeMode() }
                     )
@@ -135,6 +145,7 @@ fun App(
                         viewModel = viewerViewModel,
                         onBack = { navState.navigateBack() },
                         onEdit = { id -> navState.navigateTo(GalleryDestination.Editor(id)) },
+                        onPlayVideo = { uri -> activeActions.playVideo(uri) },
                         onShowExif = {
                             activeExifItem = ExifMetadata(
                                 make = "Google",
@@ -183,16 +194,34 @@ fun App(
                 }
 
                 is GalleryDestination.Albums -> {
-                    TimelineScreen(
-                        viewModel = timelineViewModel,
-                        onMediaClick = { id -> navState.navigateTo(GalleryDestination.Viewer(id)) }
+                    AlbumsScreen(
+                        viewModel = albumsViewModel,
+                        onFolderClick = { bucketId, folderName ->
+                            navState.navigateTo(GalleryDestination.FolderDetail(bucketId, folderName))
+                        }
+                    )
+                }
+
+                is GalleryDestination.FolderDetail -> {
+                    val allFolders by albumsViewModel.allFolders.collectAsState()
+                    val folder = allFolders.find { it.id == dest.bucketId }
+                    FolderDetailScreen(
+                        folderName = dest.folderName,
+                        items = folder?.items ?: emptyList(),
+                        onBack = { navState.navigateBack() },
+                        onMediaClick = { id -> navState.navigateTo(GalleryDestination.Viewer(id)) },
+                        onVideoClick = { _, uri -> activeActions.playVideo(uri) }
                     )
                 }
 
                 is GalleryDestination.Explore -> {
                     TimelineScreen(
                         viewModel = timelineViewModel,
-                        onMediaClick = { id -> navState.navigateTo(GalleryDestination.Viewer(id)) }
+                        onMediaClick = { id -> navState.navigateTo(GalleryDestination.Viewer(id)) },
+                        onVideoClick = { _, uri -> activeActions.playVideo(uri) },
+                        onFolderClick = { bucketId, folderName ->
+                            navState.navigateTo(GalleryDestination.FolderDetail(bucketId, folderName))
+                        }
                     )
                 }
             }

@@ -30,4 +30,15 @@ class DefaultMediaRepositoryTest {
         assertTrue(groups.isNotEmpty())
         assertEquals(20, groups.sumOf { it.items.size })
     }
+
+    @Test
+    fun testFoldersFlow() = runTest {
+        val platformSource = FakePlatformMediaDataSource()
+        platformSource.populateWithSyntheticMedia(count = 20)
+        val repo = DefaultMediaRepository(platformSource, LocalMetadataStore())
+
+        val folders = repo.getFoldersFlow().first()
+        assertTrue(folders.isNotEmpty())
+        assertEquals(20, folders.sumOf { it.items.size })
+    }
 }

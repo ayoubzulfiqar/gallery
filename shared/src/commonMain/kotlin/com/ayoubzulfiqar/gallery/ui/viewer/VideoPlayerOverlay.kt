@@ -28,6 +28,7 @@ import com.ayoubzulfiqar.gallery.ui.theme.frostedGlass
 @Composable
 fun VideoPlayerOverlay(
     durationMs: Long,
+    onPlayClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var isPlaying by remember { mutableStateOf(false) }
@@ -53,7 +54,10 @@ fun VideoPlayerOverlay(
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             IconButton(
-                onClick = { isPlaying = !isPlaying },
+                onClick = {
+                    isPlaying = !isPlaying
+                    onPlayClick()
+                },
                 modifier = Modifier.size(36.dp)
             ) {
                 Icon(
