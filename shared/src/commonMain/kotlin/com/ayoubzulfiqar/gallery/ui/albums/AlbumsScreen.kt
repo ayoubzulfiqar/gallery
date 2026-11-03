@@ -44,6 +44,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ayoubzulfiqar.gallery.domain.model.MediaFolder
 import com.ayoubzulfiqar.gallery.ui.common.AsyncMediaImage
+import com.ayoubzulfiqar.gallery.ui.common.EmptyState
+import com.ayoubzulfiqar.gallery.ui.theme.GalleryColors
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextOverflow
 import com.ayoubzulfiqar.gallery.ui.theme.GalleryIcons
 
 @Composable
@@ -87,7 +91,7 @@ fun AlbumsScreen(
                         )
                     )
                     Text(
-                        text = "${uiState.folders.size} device folders • ${uiState.totalPhotosCount + uiState.totalVideosCount} items",
+                        text = "${uiState.totalFolderCount} folders • ${uiState.totalPhotosCount} photos • ${uiState.totalVideosCount} videos",
                         style = MaterialTheme.typography.bodySmall.copy(
                             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f),
                             fontSize = 12.sp
@@ -111,7 +115,7 @@ fun AlbumsScreen(
                 ) {
                     Icon(
                         imageVector = GalleryIcons.Lens,
-                        contentDescription = "Search",
+                        contentDescription = null,
                         tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f),
                         modifier = Modifier.size(18.dp)
                     )
@@ -122,7 +126,8 @@ fun AlbumsScreen(
                             color = MaterialTheme.colorScheme.onBackground,
                             fontSize = 14.sp
                         ),
-                        cursorBrush = SolidColor(Color(0xFF00B4D8)),
+                        cursorBrush = SolidColor(GalleryColors.Accent),
+                        singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                         decorationBox = { innerTextField ->
                             if (searchQuery.isEmpty()) {
@@ -140,16 +145,16 @@ fun AlbumsScreen(
 
             if (uiState.isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = Color(0xFF00B4D8))
+                    CircularProgressIndicator(color = GalleryColors.Accent)
                 }
             } else if (uiState.folders.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        text = if (searchQuery.isNotBlank()) "No folders match '$searchQuery'" else "No media folders found",
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                        fontSize = 14.sp
-                    )
-                }
+                EmptyState(
+                    icon = GalleryIcons.Albums,
+                    title = if (searchQuery.isNotBlank()) "No matching folders" else "No folders yet",
+                    message = if (searchQuery.isNotBlank()) "Nothing matches \"${searchQuery.trim()}\"." else "Folders with photos or videos will appear here.",
+                    actionLabel = if (searchQuery.isNotBlank()) "Clear search" else null,
+                    onAction = if (searchQuery.isNotBlank()) ({ viewModel.onSearchQueryChange("") }) else null
+                )
             } else {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(columns),
@@ -185,7 +190,7 @@ private fun FolderCardItem(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
+            .clickable(role = Role.Button, onClickLabel = "Open ${folder.name}", onClick = onClick)
     ) {
         // Thumbnail Cover with 12dp corner and count overlay
         Box(
@@ -195,12 +200,15 @@ private fun FolderCardItem(
                 .clip(RoundedCornerShape(12.dp))
                 .background(Color(0xFF1B222C))
         ) {
+            val cover = folder.items.first()
             AsyncMediaImage(
-                uri = folder.coverUri,
-                contentDescription = folder.name,
+                uri = cover.uri,
+                contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
                 isThumbnail = true,
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
+                isVideo = cover.isVideo,
+                mimeType = cover.mimeType
             )
 
             // Bottom gradient overlay for contrast
@@ -243,6 +251,7 @@ private fun FolderCardItem(
                 color = MaterialTheme.colorScheme.onBackground
             ),
             maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(top = 6.dp, start = 2.dp)
         )
     }

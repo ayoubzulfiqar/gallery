@@ -1,171 +1,167 @@
 package com.ayoubzulfiqar.gallery.platform
 
+import android.app.Activity
 import android.app.WallpaperManager
+import android.content.ActivityNotFoundException
+import android.content.ClipData
 import android.content.ComponentName
-import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.provider.Settings
 import androidx.core.content.FileProvider
-import com.ayoubzulfiqar.gallery.security.AndroidMetadataStripper
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import com.ayoubzulfiqar.gallery.domain.model.MediaItem
+import com.ayoubzulfiqar.gallery.security.MetadataStripper
+import com.ayoubzulfiqar.gallery.security.SanitizationResult
 import java.io.File
 
+/** Launches system activities on behalf of the UI. Must be bound to the foreground [Activity]. */
 class AndroidPlatformActionHandler(
-    private val context: Context,
-    private val metadataStripper: AndroidMetadataStripper = AndroidMetadataStripper(context),
-    private val scope: CoroutineScope = CoroutineScope(Dispatchers.Main)
+    private val activity: Activity,
+    private val metadataStripper: MetadataStripper
 ) : PlatformActionHandler {
 
-    override fun launchGoogleLens(contentUri: String): Boolean {
-        val parsedUri = Uri.parse(contentUri)
+    override fun share(items: List<MediaItem>): ActionResult {
+        if (items.isEmpty()) return ActionResult.Cancelled
+        return startShare(items.map { Uri.parse(it.uri) }, items.map { it.mimeType }, "Share")
+    }
 
-        // Attempt 1: Direct Google Search Image / Lens Share Entry Point (bypasses any share dialog)
-        try {
-            val lensShareIntent = Intent(Intent.ACTION_SEND).apply {
-                component = ComponentName(
-                    "com.google.android.googlequicksearchbox",
-                    "com.google.android.apps.search.lens.LensShareEntryPointActivity"
-                )
-                type = "image/*"
-                putExtra(Intent.EXTRA_STREAM, parsedUri)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+    override suspend fun shareSanitized(items: List<MediaItem>): ActionResult {
+        if (items.isEmpty()) return ActionResult.Cancelled
+        val uris = mutableListOf<Uri>()
+        val mimes = mutableListOf<String>()
+        var tags = 0
+        var locations = 0
+        var failures = 0
+        var firstFailure: String? = null
+        for (item in items) {
+            when (val result = metadataStripper.stripForSharing(item)) {
+                is SanitizationResult.Success -> {
+                    val file = File(requireNotNull(Uri.parse(result.summary.cleanUri).path))
+                    uris += FileProvider.getUriForFile(activity, "${activity.packageName}.fileprovider", file)
+                    mimes += mimeForFile(file, item.mimeType)
+                    tags += result.summary.strippedTagsCount
+                    if (result.summary.removedGps) locations++
+                }
+                is SanitizationResult.Failure -> {
+                    failures++
+                    if (firstFailure == null) firstFailure = result.message
+                }
+                SanitizationResult.Cancelled -> Unit
             }
-            if (lensShareIntent.resolveActivity(context.packageManager) != null) {
-                context.startActivity(lensShareIntent)
-                return true
-            }
-        } catch (_: Exception) {}
+        }
+        if (uris.isEmpty()) return ActionResult.Failed(firstFailure ?: "Nothing could be shared")
+        val launch = startShare(uris, mimes, "Share without metadata")
+        if (launch is ActionResult.Failed) return launch
+        val summary = buildString {
+            append(if (locations > 0) "Location removed from $locations item${if (locations == 1) "" else "s"}" else "Metadata removed")
+            if (tags > 0) append(" · $tags tags stripped")
+            if (failures > 0) append(". $failures skipped: $firstFailure")
+        }
+        return ActionResult.Done(summary)
+    }
 
-        // Attempt 2: Standalone Google Lens app (com.google.ar.lens)
-        try {
-            val lensIntent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(parsedUri, "image/*")
+    private fun startShare(uris: List<Uri>, mimes: List<String>, title: String): ActionResult {
+        val type = commonMimeType(mimes)
+        val intent = if (uris.size == 1) {
+            Intent(Intent.ACTION_SEND).putExtra(Intent.EXTRA_STREAM, uris.first())
+        } else {
+            Intent(Intent.ACTION_SEND_MULTIPLE).putParcelableArrayListExtra(Intent.EXTRA_STREAM, ArrayList(uris))
+        }.apply {
+            this.type = type
+            // ClipData carries the read grant to the receiver for every URI.
+            clipData = ClipData.newRawUri(null, uris.first()).also { clip -> uris.drop(1).forEach { clip.addItem(ClipData.Item(it)) } }
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        return launch(Intent.createChooser(intent, title))
+    }
+
+    override fun launchGoogleLens(item: MediaItem): ActionResult {
+        val uri = Uri.parse(item.uri)
+        val attempts = listOf(
+            Intent(Intent.ACTION_SEND).apply {
+                component = ComponentName("com.google.android.googlequicksearchbox", "com.google.android.apps.search.lens.LensShareEntryPointActivity")
+                type = item.mimeType
+                putExtra(Intent.EXTRA_STREAM, uri)
+            },
+            Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, item.mimeType)
                 setPackage("com.google.ar.lens")
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            if (lensIntent.resolveActivity(context.packageManager) != null) {
-                context.startActivity(lensIntent)
-                return true
-            }
-        } catch (_: Exception) {}
-
-        // Attempt 3: Direct Google Search app package target (without chooser)
-        try {
-            val directSearchIntent = Intent(Intent.ACTION_SEND).apply {
+            },
+            Intent(Intent.ACTION_SEND).apply {
                 setPackage("com.google.android.googlequicksearchbox")
-                type = "image/*"
-                putExtra(Intent.EXTRA_STREAM, parsedUri)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+                type = item.mimeType
+                putExtra(Intent.EXTRA_STREAM, uri)
             }
-            if (directSearchIntent.resolveActivity(context.packageManager) != null) {
-                context.startActivity(directSearchIntent)
-                return true
-            }
-        } catch (_: Exception) {}
-
-        // Attempt 4: Fallback to system chooser
-        return try {
-            val genericIntent = Intent(Intent.ACTION_SEND).apply {
-                type = "image/*"
-                putExtra(Intent.EXTRA_STREAM, parsedUri)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            val chooser = Intent.createChooser(genericIntent, "Search with Google Lens").apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            context.startActivity(chooser)
-            true
-        } catch (_: Exception) {
-            false
+        )
+        for (intent in attempts) {
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            intent.clipData = ClipData.newRawUri(null, uri)
+            if (tryStart(intent)) return ActionResult.Done()
         }
+        return ActionResult.Failed("Google Lens isn't installed on this device")
     }
 
-    override fun playVideo(contentUri: String): Boolean {
-        android.util.Log.d("GalleryAction", "playVideo invoked for URI: $contentUri")
-        val parsedUri = Uri.parse(contentUri)
+    override fun setAsWallpaper(item: MediaItem): ActionResult {
+        val uri = Uri.parse(item.uri)
+        val cropIntent = runCatching { WallpaperManager.getInstance(activity).getCropAndSetWallpaperIntent(uri) }.getOrNull()
+        if (cropIntent != null) {
+            cropIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            if (tryStart(cropIntent)) return ActionResult.Done()
+        }
+        val attach = Intent(Intent.ACTION_ATTACH_DATA).apply {
+            setDataAndType(uri, item.mimeType)
+            putExtra("mimeType", item.mimeType)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        return launch(Intent.createChooser(attach, "Set as"))
+    }
+
+    override fun playVideo(item: MediaItem): ActionResult {
         val intent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(parsedUri, "video/*")
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+            setDataAndType(Uri.parse(item.uri), item.mimeType.takeIf { it.startsWith("video/") } ?: "video/*")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-
-        // Direct default player launch (e.g. MX Player Pro, VLC, or System Player)
-        try {
-            context.startActivity(intent)
-            android.util.Log.d("GalleryAction", "playVideo directly launched default video player")
-            return true
-        } catch (e: Exception) {
-            android.util.Log.w("GalleryAction", "Direct launch failed, falling back to chooser", e)
-        }
-
-        // Fallback to system chooser if no default player is assigned
-        return try {
-            val chooser = Intent.createChooser(intent, "Play Video").apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            context.startActivity(chooser)
-            true
-        } catch (e: Exception) {
-            android.util.Log.e("GalleryAction", "playVideo failed completely", e)
-            false
-        }
+        if (tryStart(intent)) return ActionResult.Done()
+        return ActionResult.Failed("No app can play this video")
     }
 
-    override fun setAsWallpaper(contentUri: String) {
-        val parsedUri = Uri.parse(contentUri)
-        try {
-            val wallpaperManager = WallpaperManager.getInstance(context)
-            val intent = wallpaperManager.getCropAndSetWallpaperIntent(parsedUri).apply {
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            context.startActivity(intent)
-        } catch (_: Exception) {
-            // Fallback to standard ACTION_ATTACH_DATA picker
-            try {
-                val attachIntent = Intent(Intent.ACTION_ATTACH_DATA).apply {
-                    setDataAndType(parsedUri, "image/*")
-                    putExtra("mimeType", "image/*")
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                val chooser = Intent.createChooser(attachIntent, "Set as Wallpaper").apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                context.startActivity(chooser)
-            } catch (_: Exception) {
-                // Graceful fallback
-            }
-        }
+    override fun openMap(latitude: Double, longitude: Double, label: String): ActionResult {
+        val geo = Uri.parse("geo:$latitude,$longitude?q=$latitude,$longitude(${Uri.encode(label)})")
+        if (tryStart(Intent(Intent.ACTION_VIEW, geo))) return ActionResult.Done()
+        val web = Uri.parse("https://www.google.com/maps/search/?api=1&query=$latitude,$longitude")
+        return if (tryStart(Intent(Intent.ACTION_VIEW, web))) ActionResult.Done() else ActionResult.Failed("No maps app available")
     }
 
-    override fun shareSanitized(contentUri: String, mimeType: String) {
-        scope.launch {
-            val summary = if (mimeType.startsWith("video")) {
-                metadataStripper.stripVideoMetadata(contentUri, inPlace = false)
-            } else {
-                metadataStripper.stripImageMetadata(contentUri, inPlace = false)
-            }
+    override fun openAppSettings(): ActionResult {
+        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", activity.packageName, null))
+        return if (tryStart(intent)) ActionResult.Done() else ActionResult.Failed("Couldn't open settings")
+    }
 
-            val cleanFile = File(Uri.parse(summary.cleanUri).path ?: "")
-            val shareUri = try {
-                FileProvider.getUriForFile(
-                    context,
-                    "${context.packageName}.fileprovider",
-                    cleanFile
-                )
-            } catch (_: Exception) {
-                Uri.parse(contentUri)
-            }
+    private fun launch(intent: Intent): ActionResult =
+        if (tryStart(intent)) ActionResult.Done() else ActionResult.Failed("No app available for this action")
 
-            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                type = mimeType
-                putExtra(Intent.EXTRA_STREAM, shareUri)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            val chooser = Intent.createChooser(shareIntent, "Share Securely (Metadata Stripped)").apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            context.startActivity(chooser)
-        }
+    private fun tryStart(intent: Intent): Boolean = try {
+        activity.startActivity(intent)
+        true
+    } catch (_: ActivityNotFoundException) {
+        false
+    } catch (_: SecurityException) {
+        false
+    }
+
+    private fun commonMimeType(mimes: List<String>): String {
+        val distinct = mimes.distinct()
+        if (distinct.size == 1) return distinct.first()
+        val families = distinct.map { it.substringBefore('/') }.distinct()
+        return if (families.size == 1) "${families.first()}/*" else "*/*"
+    }
+
+    private fun mimeForFile(file: File, fallback: String): String = when (file.extension.lowercase()) {
+        "jpg", "jpeg" -> "image/jpeg"
+        "png" -> "image/png"
+        "gif" -> "image/gif"
+        "mp4" -> "video/mp4"
+        "webm" -> "video/webm"
+        else -> fallback
     }
 }

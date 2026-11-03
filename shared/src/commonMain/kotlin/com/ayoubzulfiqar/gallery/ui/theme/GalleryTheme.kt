@@ -57,6 +57,16 @@ fun GalleryTheme(
     )
 }
 
+/** Brand palette shared by custom components (Material roles cover the rest). */
+object GalleryColors {
+    val Accent = Color(0xFF00B4D8)
+    val Danger = Color(0xFFEF4444)
+    val Favorite = Color(0xFFFF3B30)
+    val Warning = Color(0xFFFF9F1C)
+    val DarkCanvas = Color(0xFF0B0F12)
+    val LightCanvas = Color(0xFFF7F9FC)
+}
+
 @Composable
 fun GalleryTheme(
     darkTheme: Boolean,

@@ -5,6 +5,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.PathBuilder
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
 
@@ -1028,5 +1029,100 @@ object GalleryIcons {
                 moveTo(19f, 12f); curveTo(19.55f, 12f, 20f, 11.55f, 20f, 11f); curveTo(20f, 10.45f, 19.55f, 10f, 19f, 10f); curveTo(18.45f, 10f, 18f, 10.45f, 18f, 11f); curveTo(18f, 11.55f, 18.45f, 12f, 19f, 12f); close()
             }
         }.build()
+    }
+
+    private fun strokeIcon(name: String, width: Float = 2f, block: PathBuilder.() -> Unit): ImageVector =
+        ImageVector.Builder(
+            name = name,
+            defaultWidth = 24.dp,
+            defaultHeight = 24.dp,
+            viewportWidth = 24f,
+            viewportHeight = 24f
+        ).apply {
+            path(
+                stroke = SolidColor(Color.White),
+                strokeLineWidth = width,
+                strokeLineCap = StrokeCap.Round,
+                strokeLineJoin = StrokeJoin.Round,
+                pathBuilder = block
+            )
+        }.build()
+
+    // Broken image: picture frame split by a jagged tear
+    val BrokenImage: ImageVector by lazy {
+        strokeIcon("BrokenImage") {
+            moveTo(4f, 13f); lineTo(4f, 5f); lineTo(20f, 5f); lineTo(20f, 11f)
+            moveTo(20f, 15f); lineTo(20f, 19f); lineTo(4f, 19f); lineTo(4f, 17f)
+            moveTo(4f, 13f); lineTo(8f, 11f); lineTo(11f, 14f); lineTo(15f, 10f); lineTo(20f, 13f)
+            moveTo(4f, 17f); lineTo(9f, 15f); lineTo(12f, 18f); lineTo(16f, 14f); lineTo(20f, 15f)
+        }
+    }
+
+    // Select all: rounded square with a check mark
+    val SelectAll: ImageVector by lazy {
+        strokeIcon("SelectAll") {
+            moveTo(7f, 4f); lineTo(17f, 4f); curveTo(18.66f, 4f, 20f, 5.34f, 20f, 7f); lineTo(20f, 17f)
+            curveTo(20f, 18.66f, 18.66f, 20f, 17f, 20f); lineTo(7f, 20f); curveTo(5.34f, 20f, 4f, 18.66f, 4f, 17f)
+            lineTo(4f, 7f); curveTo(4f, 5.34f, 5.34f, 4f, 7f, 4f); close()
+            moveTo(8.5f, 12.2f); lineTo(11f, 14.7f); lineTo(15.8f, 9.5f)
+        }
+    }
+
+    // Key: used for "Change PIN"
+    val Key: ImageVector by lazy {
+        strokeIcon("Key") {
+            moveTo(10.5f, 13.5f); curveTo(9.8f, 15.5f, 7.6f, 16.6f, 5.6f, 15.9f); curveTo(3.6f, 15.2f, 2.5f, 13f, 3.2f, 11f)
+            curveTo(3.9f, 9f, 6.1f, 7.9f, 8.1f, 8.6f); curveTo(9.5f, 9.1f, 10.4f, 10.3f, 10.6f, 11.6f)
+            lineTo(21f, 11.6f); lineTo(21f, 14.6f)
+            moveTo(17.5f, 11.6f); lineTo(17.5f, 14f)
+        }
+    }
+
+    // Padlock
+    val Lock: ImageVector by lazy {
+        strokeIcon("Lock") {
+            moveTo(6f, 11f); lineTo(18f, 11f); lineTo(18f, 20f); lineTo(6f, 20f); close()
+            moveTo(8.5f, 11f); lineTo(8.5f, 8f); curveTo(8.5f, 6.07f, 10.07f, 4.5f, 12f, 4.5f)
+            curveTo(13.93f, 4.5f, 15.5f, 6.07f, 15.5f, 8f); lineTo(15.5f, 11f)
+            moveTo(12f, 14.5f); lineTo(12f, 16.5f)
+        }
+    }
+
+    // Horizontal flip: mirrored triangles around a dashed axis
+    val FlipHorizontal: ImageVector by lazy {
+        strokeIcon("FlipHorizontal") {
+            moveTo(12f, 3f); lineTo(12f, 5f); moveTo(12f, 8f); lineTo(12f, 10f)
+            moveTo(12f, 13f); lineTo(12f, 15f); moveTo(12f, 18f); lineTo(12f, 21f)
+            moveTo(9f, 6f); lineTo(3f, 18f); lineTo(9f, 18f); close()
+            moveTo(15f, 6f); lineTo(21f, 18f); lineTo(15f, 18f); close()
+        }
+    }
+
+    // Vertical flip
+    val FlipVertical: ImageVector by lazy {
+        strokeIcon("FlipVertical") {
+            moveTo(3f, 12f); lineTo(5f, 12f); moveTo(8f, 12f); lineTo(10f, 12f)
+            moveTo(13f, 12f); lineTo(15f, 12f); moveTo(18f, 12f); lineTo(21f, 12f)
+            moveTo(6f, 9f); lineTo(18f, 3f); lineTo(18f, 9f); close()
+            moveTo(6f, 15f); lineTo(18f, 21f); lineTo(18f, 15f); close()
+        }
+    }
+
+    // Restore: arrow rising out of a tray
+    val Restore: ImageVector by lazy {
+        strokeIcon("Restore") {
+            moveTo(12f, 15f); lineTo(12f, 4f)
+            moveTo(8f, 8f); lineTo(12f, 4f); lineTo(16f, 8f)
+            moveTo(4f, 14f); lineTo(4f, 19f); lineTo(20f, 19f); lineTo(20f, 14f)
+        }
+    }
+
+    // Warning triangle
+    val Warning: ImageVector by lazy {
+        strokeIcon("Warning") {
+            moveTo(12f, 3.5f); lineTo(21.5f, 20f); lineTo(2.5f, 20f); close()
+            moveTo(12f, 10f); lineTo(12f, 14f)
+            moveTo(12f, 17f); lineTo(12f, 17.2f)
+        }
     }
 }

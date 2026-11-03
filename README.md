@@ -26,17 +26,17 @@ A high-performance, privacy-first, beautiful media gallery built with **Compose 
 * **Adaptive Frosted Glass**: Dynamic translucent blurs that automatically adapt between Light Mode and Dark Mode.
 * **Options & Tools Bottom Sheet**:
   * Set as Wallpaper (Home / Lock screen).
-  * Sanitize & Share (Strips GPS and camera metadata on-the-fly).
-  * Sanitize In-Place (Removes EXIF tags directly from device file).
+  * Share without metadata (lossless for JPEG/PNG, remuxed for video; location and camera details removed).
+  * Remove metadata from original (JPEG/PNG, with system write consent and automatic rollback).
   * Technical EXIF Inspector (ISO, aperture, shutter speed, focal length, location).
   * **Move to Encrypted Vault** (Encrypts with AES-256-GCM).
 
 ### 🔒 AES-256-GCM Encrypted Vault
-* **Military-Grade Authenticated Encryption**: 256-bit AES in Galois/Counter Mode (GCM) with 12-byte random IVs and 16-byte authentication tags.
+* **Envelope Encryption**: Every item is encrypted with streaming AES-256-GCM under a random data key; the key is wrapped by your PIN (PBKDF2-HMAC-SHA256) and sealed by a hardware-backed Android Keystore key, so vault files are useless off-device.
 * **Adaptive Light & Dark UI**: Beautiful keypad with custom circular keys, glowing lock icon, and clear PIN indicator dots in both Light and Dark themes.
-* **PIN Authentication**: Default PIN is `1234` (or `0000`).
-* **Instant Gallery Isolation**: Moving photos to the Vault encrypts them into a secure sandbox and immediately hides them from Photos, Albums, and Folders.
-* **Inspect & Restore**: Tap any vaulted photo to preview its details, permanently delete it, or tap **"Restore to Gallery"** to decrypt and return it to your public gallery timeline.
+* **PIN Protection**: You create a 4–8 digit PIN on first use (weak sequences are rejected). Wrong attempts trigger a persistent, escalating lockout. The vault locks automatically when the app goes to the background, and screenshots are blocked while it is open.
+* **Safe Transfers**: Items are encrypted first and the original is deleted only after you approve the system prompt. If you decline, the vault copy is rolled back, so nothing is lost or duplicated.
+* **Inspect & Restore**: Preview photos in memory only, permanently delete items (with confirmation), or restore them byte-for-byte to their original folder.
 
 ### 🔙 Native System Back Navigation
 * Integrated with Android's system back gesture and hardware back button via multiplatform `GalleryBackHandler`.
@@ -50,9 +50,9 @@ This project strictly adheres to **Clean Architecture** principles and **Unidire
 
 * **Compose Multiplatform**: Declarative UI shared across Android and iOS.
 * **Kotlin Coroutines & StateFlow**: Asynchronous data pipelines and reactive UI states.
-* **Coil 3 Multiplatform**: High-performance image loading, decoding, memory caching, and disk caching with Android ContentUri support.
-* **AES-256-GCM Crypto**: Platform-native cryptographic implementations via Java `Cipher` on Android and Apple `CommonCrypto` / CryptoKit on iOS.
-* **Android MediaStore**: Real on-device media querying with dynamic projections and bucket categorization.
+* **Image Loading**: Pluggable `PlatformImageLoader` with a shared LRU cache; Android uses MediaStore thumbnails and `ImageDecoder` (EXIF orientation, HEIC) with bounded parallel decoding.
+* **AES-256-GCM Crypto**: JCA (Conscrypt/BoringSSL) on Android; a portable engine on iOS verified against NIST/FIPS vectors and cross-checked with JCA.
+* **Android MediaStore**: Debounced background queries, consent-based trash/delete on Android 11+, and pending-insert imports.
 * **Detailed Architecture Docs**: See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/FEATURES.md](docs/FEATURES.md).
 
 ---
@@ -68,18 +68,21 @@ Gallery/
 │   ├── src/commonMain/kotlin/
 │   │   └── com/ayoubzulfiqar/gallery/
 │   │       ├── data/            # Repositories, LocalMetadataStore, Data Sources
-│   │       ├── domain/          # MediaItem, MediaFolder, VaultEntry, UseCases
+│   │       ├── domain/          # Models, VaultTransferCoordinator, timeline grouping
 │   │       ├── platform/        # Native bridge interfaces (Lens, Video Player)
 │   │       ├── ui/
 │   │       │   ├── albums/      # AlbumsScreen, FolderDetailScreen, AlbumsViewModel
-│   │       │   ├── common/      # AsyncMediaImage, GalleryBackHandler
-│   │       │   ├── gesture/     # PinchDensityState, TimelineDensity
+│   │       │   ├── common/      # Image loading, dialogs, GalleryBackHandler
+│   │       │   ├── editor/      # PhotoEditorScreen, PhotoEditorViewModel
+│   │       │   ├── permission/  # Permission and partial-access UI
 │   │       │   ├── navigation/  # GalleryNavState, GalleryDestination
 │   │       │   ├── theme/       # GalleryTheme, FrostedGlass, GalleryIcons
 │   │       │   ├── timeline/    # TimelineScreen, TimelineViewModel, MediaThumbnailItem
 │   │       │   ├── vault/       # VaultScreen, VaultViewModel
 │   │       │   └── viewer/      # LightboxViewerScreen, ZoomableMediaBox, ViewerMoreSheet
-│   │       └── vault/           # AesGcmCipher, DefaultVaultRepository
+│   │       ├── core/            # crypto (AES-GCM, streaming AEAD, KDFs), io
+│   │       ├── security/        # Lossless JPEG/PNG metadata strippers
+│   │       └── vault/           # DefaultVaultRepository, storage abstractions
 │   ├── src/androidMain/         # Android MediaStore source, back handler, native actions
 │   └── src/iosMain/             # iOS platform implementations
 └── docs/                        # Architecture documentation, feature specs & screenshots
@@ -101,7 +104,7 @@ Gallery/
 
 * **Run all Multiplatform Tests**:
   ```bash
-  ./gradlew :shared:allTests --no-daemon
+  ./gradlew :shared:testAndroidHostTest
   ```
 
 * **Build Android Debug APK**:
@@ -112,6 +115,11 @@ Gallery/
 * **Build Android Release APK**:
   ```bash
   ./gradlew assembleRelease --no-daemon
+  ```
+
+* **Measuring performance**: always judge smoothness on the **release** variant (R8-optimized, non-debuggable; signed with the debug key, so you can select it in Android Studio and press Run). Debug builds of Compose apps are several times slower by design. To get install-time optimization when sideloading, run:
+  ```bash
+  adb shell cmd package compile -m speed-profile -f com.ayoubzulfiqar.gallery
   ```
 
 * **Install onto Connected Android Device**:

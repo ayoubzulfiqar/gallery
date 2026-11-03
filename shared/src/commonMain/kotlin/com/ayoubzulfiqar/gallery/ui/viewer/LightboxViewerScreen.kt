@@ -1,8 +1,6 @@
 package com.ayoubzulfiqar.gallery.ui.viewer
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
@@ -21,7 +19,9 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -37,184 +37,121 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.ayoubzulfiqar.gallery.domain.model.MediaType
+import com.ayoubzulfiqar.gallery.domain.model.MediaItem
+import com.ayoubzulfiqar.gallery.domain.model.formatDuration
 import com.ayoubzulfiqar.gallery.ui.common.AsyncMediaImage
+import com.ayoubzulfiqar.gallery.ui.common.formatDateTime
+import com.ayoubzulfiqar.gallery.ui.theme.GalleryColors
 import com.ayoubzulfiqar.gallery.ui.theme.GalleryIcons
 import com.ayoubzulfiqar.gallery.ui.theme.frostedGlass
+
+/** Viewer actions; a null callback hides the corresponding control (platform capability). */
+data class ViewerCallbacks(
+    val onBack: () -> Unit,
+    val onPlayVideo: (MediaItem) -> Unit,
+    val onShare: (MediaItem) -> Unit,
+    val onEdit: ((MediaItem) -> Unit)? = null,
+    val onShareSanitized: ((MediaItem) -> Unit)? = null,
+    val onStripInPlace: ((MediaItem) -> Unit)? = null,
+    val supportsInPlaceStrip: (MediaItem) -> Boolean = { false },
+    val onLens: ((MediaItem) -> Unit)? = null,
+    val onWallpaper: ((MediaItem) -> Unit)? = null,
+    val onDelete: ((MediaItem) -> Unit)? = null,
+    val onMoveToVault: ((MediaItem) -> Unit)? = null,
+    val onOpenMap: ((Double, Double) -> Unit)? = null
+)
 
 @Composable
 fun LightboxViewerScreen(
     viewModel: ViewerViewModel,
-    onBack: UnitCallback = {},
-    onEdit: (mediaId: String) -> Unit = {},
-    onPlayVideo: (contentUri: String) -> Unit = {},
-    onShowExif: UnitCallback = {},
-    onGoogleLens: (contentUri: String) -> Unit = {},
-    onSetAsWallpaper: (contentUri: String) -> Unit = {},
-    onSanitizeShare: (contentUri: String, mimeType: String) -> Unit = { _, _ -> },
-    onStripInPlace: (contentUri: String) -> Unit = {},
-    onMoveToVault: (mediaId: String) -> Unit = {},
-    isDark: Boolean = true,
+    callbacks: ViewerCallbacks,
+    isDark: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val uiState by viewModel.uiState.collectAsState()
     val isChromeVisible by viewModel.isChromeVisible.collectAsState()
-    val items by viewModel.items.collectAsState()
-    val currentIndex by viewModel.currentIndex.collectAsState()
-
+    val details by viewModel.details.collectAsState()
     var showMoreSheet by remember { mutableStateOf(false) }
 
-    val initialPage = remember(items) {
-        currentIndex.coerceIn(0, (items.size - 1).coerceAtLeast(0))
-    }
-    val pagerState = rememberPagerState(
-        initialPage = initialPage,
-        pageCount = { items.size }
-    )
-
-    // Synchronize horizontal swipe page changes to ViewModel
-    LaunchedEffect(pagerState) {
-        snapshotFlow { pagerState.currentPage }.collect { page ->
-            if (page != currentIndex && page in items.indices) {
-                viewModel.setIndex(page)
-            }
-        }
-    }
-
-    // Synchronize programmatic index updates to pager
-    LaunchedEffect(currentIndex) {
-        if (currentIndex != pagerState.currentPage && currentIndex in items.indices) {
-            pagerState.scrollToPage(currentIndex)
-        }
-    }
-
-    val item = items.getOrNull(currentIndex)
-    val canvasBackground = if (isDark) Color.Black else Color(0xFFF1F5F9)
+    val canvas = if (isDark) Color.Black else Color(0xFFF1F5F9)
     val chromeColor = if (isDark) Color.White else Color(0xFF0F172A)
 
-    var isCurrentZoomed by remember { mutableStateOf(false) }
+    // The scope emptied (last item deleted or moved): nothing left to page through.
+    LaunchedEffect(uiState.isEmpty) { if (uiState.isEmpty) callbacks.onBack() }
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(canvasBackground)
-    ) {
-        if (items.isNotEmpty()) {
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier.fillMaxSize(),
-                userScrollEnabled = !isCurrentZoomed,
-                key = { if (it in items.indices) items[it].id else it }
-            ) { pageIndex ->
-                val pageItem = items.getOrNull(pageIndex)
-                if (pageItem != null) {
-                    ZoomableMediaBox(
-                        onDismissRequest = onBack,
-                        onTap = { viewModel.toggleChrome() },
-                        onZoomChanged = { zoomed ->
-                            if (pageIndex == pagerState.currentPage) {
-                                isCurrentZoomed = zoomed
-                            }
-                        },
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        AsyncMediaImage(
-                            uri = pageItem.uri,
-                            contentDescription = pageItem.displayName,
-                            modifier = Modifier.fillMaxSize(),
-                            isThumbnail = false,
-                            contentScale = ContentScale.Fit
-                        )
-                    }
-                }
-            }
+    Box(modifier = modifier.fillMaxSize().background(canvas)) {
+        if (uiState.isLoading) {
+            CircularProgressIndicator(color = GalleryColors.Accent, modifier = Modifier.align(Alignment.Center))
+            return@Box
+        }
+        val items = uiState.items
+        if (items.isEmpty()) return@Box
 
-            if (item != null && item.mediaType == MediaType.VIDEO && item.durationMs != null) {
-                AnimatedVisibility(
-                    visible = isChromeVisible,
-                    enter = fadeIn(),
-                    exit = fadeOut(),
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .windowInsetsPadding(WindowInsets.navigationBars)
-                        .padding(bottom = 88.dp)
-                ) {
-                    VideoPlayerOverlay(
-                        durationMs = item.durationMs,
-                        onPlayClick = { onPlayVideo(item.uri) }
-                    )
-                }
-            }
+        val pagerState = rememberPagerState(initialPage = uiState.currentIndex.coerceIn(0, items.lastIndex)) { items.size }
+        var isCurrentZoomed by remember { mutableStateOf(false) }
+
+        LaunchedEffect(pagerState) {
+            snapshotFlow { pagerState.currentPage }.collect { viewModel.onPageChanged(it) }
+        }
+        val requestedIndex = uiState.currentIndex
+        LaunchedEffect(requestedIndex, items.size) {
+            val target = requestedIndex.coerceIn(0, items.lastIndex)
+            if (pagerState.currentPage != target) pagerState.scrollToPage(target)
         }
 
-        // Top Chrome Bar with System Status Bar Inset
-        AnimatedVisibility(
-            visible = isChromeVisible,
-            enter = slideInVertically(initialOffsetY = { -it }),
-            exit = slideOutVertically(targetOffsetY = { -it }),
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .windowInsetsPadding(WindowInsets.statusBars)
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .frostedGlass(isDark = isDark, blurRadius = 24.dp)
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize(),
+            userScrollEnabled = !isCurrentZoomed,
+            beyondViewportPageCount = 1,
+            key = { index -> items.getOrNull(index)?.id ?: "page-$index" }
+        ) { page ->
+            val pageItem = items.getOrNull(page) ?: return@HorizontalPager
+            ZoomableMediaBox(
+                onDismissRequest = callbacks.onBack,
+                onTap = viewModel::toggleChrome,
+                zoomEnabled = !pageItem.isVideo,
+                onZoomChanged = { zoomed -> if (page == pagerState.currentPage) isCurrentZoomed = zoomed }
             ) {
-                IconButton(onClick = onBack, modifier = Modifier.size(38.dp)) {
-                    Icon(
-                        imageVector = GalleryIcons.ChevronBack,
-                        contentDescription = "Back",
-                        tint = chromeColor,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-
-                Text(
-                    text = "${(currentIndex + 1).coerceAtMost(items.size)} of ${items.size}",
-                    color = chromeColor.copy(alpha = 0.9f),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold
+                AsyncMediaImage(
+                    uri = pageItem.uri,
+                    contentDescription = pageItem.displayName,
+                    modifier = Modifier.fillMaxSize(),
+                    isThumbnail = false,
+                    contentScale = ContentScale.Fit,
+                    isVideo = pageItem.isVideo,
+                    mimeType = pageItem.mimeType
                 )
-
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    IconButton(
-                        onClick = { viewModel.toggleFavorite() },
-                        modifier = Modifier.size(38.dp)
-                    ) {
-                        val isFav = item?.isFavorite == true
-                        Icon(
-                            imageVector = if (isFav) GalleryIcons.HeartFilled else GalleryIcons.HeartOutline,
-                            contentDescription = "Favorite",
-                            tint = if (isFav) Color(0xFFFF3B30) else chromeColor,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    IconButton(
-                        onClick = { showMoreSheet = true },
-                        modifier = Modifier.size(38.dp)
-                    ) {
-                        Icon(
-                            imageVector = GalleryIcons.MoreHorizontal,
-                            contentDescription = "More Options",
-                            tint = chromeColor,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
+                if (pageItem.isVideo) {
+                    VideoPlayButton(pageItem) { callbacks.onPlayVideo(pageItem) }
                 }
             }
         }
 
-        // Bottom Action Bar with Navigation Bar Inset
+        val item = uiState.currentItem
+        TopChrome(
+            visible = isChromeVisible,
+            item = item,
+            position = uiState.currentIndex + 1,
+            total = items.size,
+            isDark = isDark,
+            chromeColor = chromeColor,
+            onBack = callbacks.onBack,
+            onFavorite = viewModel::toggleFavorite,
+            onInfo = viewModel::showDetails,
+            onMore = { showMoreSheet = true },
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
+
         AnimatedVisibility(
-            visible = isChromeVisible && !showMoreSheet,
+            visible = isChromeVisible && item != null,
             enter = slideInVertically(initialOffsetY = { it }),
             exit = slideOutVertically(targetOffsetY = { it }),
             modifier = Modifier
@@ -222,102 +159,146 @@ fun LightboxViewerScreen(
                 .windowInsetsPadding(WindowInsets.navigationBars)
                 .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
+            if (item == null) return@AnimatedVisibility
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .frostedGlass(isDark = isDark, blurRadius = 24.dp)
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
+                    .padding(horizontal = 4.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                ActionPillButton(
-                    icon = GalleryIcons.Lens,
-                    label = "Lens",
-                    tint = Color(0xFF00B4D8),
-                    onClick = { item?.let { onGoogleLens(it.uri) } }
-                )
-                if (item?.mediaType == MediaType.VIDEO) {
-                    ActionPillButton(
-                        icon = GalleryIcons.Play,
-                        label = "Play",
-                        tint = Color(0xFF00B4D8),
-                        onClick = { item?.let { onPlayVideo(it.uri) } }
-                    )
+                ActionPillButton(GalleryIcons.ShareArrow, "Share", chromeColor) { callbacks.onShare(item) }
+                if (item.isVideo) {
+                    ActionPillButton(GalleryIcons.Play, "Play", GalleryColors.Accent) { callbacks.onPlayVideo(item) }
                 } else {
-                    ActionPillButton(
-                        icon = GalleryIcons.EditPen,
-                        label = "Edit",
-                        tint = chromeColor,
-                        onClick = { item?.let { onEdit(it.id) } }
-                    )
+                    callbacks.onEdit?.let { edit -> ActionPillButton(GalleryIcons.EditPen, "Edit", chromeColor) { edit(item) } }
+                    callbacks.onLens?.let { lens -> ActionPillButton(GalleryIcons.Lens, "Lens", GalleryColors.Accent) { lens(item) } }
                 }
-                ActionPillButton(
-                    icon = GalleryIcons.ShareArrow,
-                    label = "Share",
-                    tint = chromeColor,
-                    onClick = { item?.let { onSanitizeShare(it.uri, it.mimeType) } }
-                )
-                ActionPillButton(
-                    icon = GalleryIcons.Wallpaper,
-                    label = "Wallpaper",
-                    tint = chromeColor,
-                    onClick = { item?.let { onSetAsWallpaper(it.uri) } }
-                )
-                ActionPillButton(
-                    icon = GalleryIcons.Trash,
-                    label = "Delete",
-                    tint = Color(0xFFFF453A),
-                    onClick = { viewModel.deleteCurrent { onBack() } }
-                )
+                callbacks.onMoveToVault?.let { vault -> ActionPillButton(GalleryIcons.Vault, "Vault", chromeColor) { vault(item) } }
+                callbacks.onDelete?.let { delete -> ActionPillButton(GalleryIcons.Trash, "Delete", Color(0xFFFF453A)) { delete(item) } }
             }
         }
 
-        // Contextual More Options Bottom Sheet
         if (showMoreSheet && item != null) {
-            ViewerMoreSheet(
-                onGoogleLens = { onGoogleLens(item.uri) },
-                onSetAsWallpaper = { onSetAsWallpaper(item.uri) },
-                onSanitizeShare = { onSanitizeShare(item.uri, item.mimeType) },
-                onStripInPlace = { onStripInPlace(item.uri) },
-                onMoveToVault = { onMoveToVault(item.id) },
-                onShowExif = onShowExif,
-                onClose = { showMoreSheet = false },
-                isDark = isDark,
-                modifier = Modifier.align(Alignment.BottomCenter)
+            ViewerMoreSheet(actions = moreActions(item, callbacks, isDark), onDismiss = { showMoreSheet = false })
+        }
+        if (details != DetailsState.Hidden && item != null) {
+            MediaInfoSheet(item = item, state = details, onDismiss = viewModel::hideDetails, onOpenMap = callbacks.onOpenMap)
+        }
+    }
+}
+
+private fun moreActions(item: MediaItem, callbacks: ViewerCallbacks, isDark: Boolean): List<MoreSheetAction> = buildList {
+    callbacks.onShareSanitized?.let {
+        add(MoreSheetAction(GalleryIcons.ShieldCheck, Color(0xFF2EC4B6), "Share without metadata", "Removes location, camera and date details from the shared copy") { it(item) })
+    }
+    if (callbacks.onStripInPlace != null && callbacks.supportsInPlaceStrip(item)) {
+        add(MoreSheetAction(GalleryIcons.ShieldCheck, GalleryColors.Warning, "Remove metadata from original", "Permanently strips location and camera details from this file") { callbacks.onStripInPlace.invoke(item) })
+    }
+    if (!item.isVideo) {
+        callbacks.onWallpaper?.let { add(MoreSheetAction(GalleryIcons.Wallpaper, Color(0xFF80D4FF), "Set as wallpaper", "Home screen, lock screen or both") { it(item) }) }
+        callbacks.onLens?.let { add(MoreSheetAction(GalleryIcons.Lens, GalleryColors.Accent, "Search with Google Lens", "Identify objects, text and places") { it(item) }) }
+    }
+    callbacks.onMoveToVault?.let { add(MoreSheetAction(GalleryIcons.Vault, Color(0xFFE71D36), "Move to vault", "Encrypt and hide from your gallery") { it(item) }) }
+}
+
+@Composable
+private fun TopChrome(
+    visible: Boolean,
+    item: MediaItem?,
+    position: Int,
+    total: Int,
+    isDark: Boolean,
+    chromeColor: Color,
+    onBack: () -> Unit,
+    onFavorite: () -> Unit,
+    onInfo: () -> Unit,
+    onMore: () -> Unit,
+    modifier: Modifier
+) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = slideInVertically(initialOffsetY = { -it }),
+        exit = slideOutVertically(targetOffsetY = { -it }),
+        modifier = modifier.windowInsetsPadding(WindowInsets.statusBars).padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .frostedGlass(isDark = isDark, blurRadius = 24.dp)
+                .padding(horizontal = 4.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack, modifier = Modifier.size(44.dp)) {
+                Icon(GalleryIcons.ChevronBack, contentDescription = "Back", tint = chromeColor, modifier = Modifier.size(20.dp))
+            }
+            Column(modifier = Modifier.weight(1f).padding(horizontal = 4.dp)) {
+                Text(
+                    text = item?.let { formatDateTime(it.dateTakenMillis) } ?: "",
+                    color = chromeColor,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text("$position of $total", color = chromeColor.copy(alpha = 0.65f), fontSize = 11.sp)
+            }
+            val isFavorite = item?.isFavorite == true
+            IconButton(onClick = onFavorite, modifier = Modifier.size(44.dp)) {
+                Icon(
+                    imageVector = if (isFavorite) GalleryIcons.HeartFilled else GalleryIcons.HeartOutline,
+                    contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
+                    tint = if (isFavorite) GalleryColors.Favorite else chromeColor,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            IconButton(onClick = onInfo, modifier = Modifier.size(44.dp)) {
+                Icon(GalleryIcons.InfoCircle, contentDescription = "Details", tint = chromeColor, modifier = Modifier.size(20.dp))
+            }
+            IconButton(onClick = onMore, modifier = Modifier.size(44.dp)) {
+                Icon(GalleryIcons.MoreHorizontal, contentDescription = "More options", tint = chromeColor, modifier = Modifier.size(20.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun VideoPlayButton(item: MediaItem, onClick: () -> Unit) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Box(
+            modifier = Modifier
+                .size(72.dp)
+                .clip(CircleShape)
+                .background(Color.Black.copy(alpha = 0.55f))
+                .clickable(role = Role.Button, onClickLabel = "Play video", onClick = onClick),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(GalleryIcons.Play, contentDescription = "Play video", tint = Color.White, modifier = Modifier.size(30.dp))
+        }
+        item.durationMs?.takeIf { it > 0 }?.let {
+            Text(
+                text = formatDuration(it),
+                color = Color.White,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(8.dp)).padding(horizontal = 8.dp, vertical = 3.dp)
             )
         }
     }
 }
 
-typealias UnitCallback = () -> Unit
-
 @Composable
-private fun ActionPillButton(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    tint: Color = Color.White,
-    onClick: () -> Unit
-) {
+private fun ActionPillButton(icon: ImageVector, label: String, tint: Color, onClick: () -> Unit) {
     Column(
         modifier = Modifier
             .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 6.dp),
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = label,
-            tint = tint,
-            modifier = Modifier.size(19.dp)
-        )
-        Text(
-            text = label,
-            color = tint.copy(alpha = 0.9f),
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier.padding(top = 2.dp)
-        )
+        Icon(imageVector = icon, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
+        Text(label, color = tint.copy(alpha = 0.9f), fontSize = 11.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(top = 2.dp))
     }
 }

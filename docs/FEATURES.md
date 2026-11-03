@@ -1,6 +1,6 @@
 # Gallery Features & User Guide
 
-A modern, fast, privacy-focused gallery application built with **Compose Multiplatform** targeting Android and iOS, designed with Google Gallery Go aesthetics, modern frosted glass UI, and military-grade AES-256-GCM vault security.
+A modern, fast, privacy-focused gallery application built with **Compose Multiplatform** targeting Android and iOS, designed with Google Gallery Go aesthetics, modern frosted glass UI, and a device-bound AES-256-GCM encrypted vault.
 
 ---
 
@@ -19,6 +19,7 @@ A modern, fast, privacy-focused gallery application built with **Compose Multipl
   * **Days**: Larger 3-column daily grid.
   * **Masonry**: Dynamic aspect-ratio staggered layout.
 * **Category Filters**: Instant chips to filter by **All**, **Photos**, **Videos**, or **Favorites**.
+* **Photos First**: In **All**, every photo is shown first (newest first, grouped by date) and all videos follow in a dedicated **Videos** section at the bottom — new videos never push photos down. Swiping in the viewer follows the same order. Folder views stay chronological.
 * **Adaptive Theme**: Toggle between Light Mode and Dark Mode with persistent state across app launches.
 
 ---
@@ -40,22 +41,22 @@ A modern, fast, privacy-focused gallery application built with **Compose Multipl
 * **Frosted Glass Chrome**: Top and bottom control bars feature blur/frosted glass that adapts dynamically to Light and Dark mode.
 * **Options & Tools Menu**:
   * Set as Wallpaper (Home / Lock screen).
-  * Sanitize & Share (Strips GPS and camera metadata on-the-fly with 0 duplicates).
-  * Sanitize In-Place (Removes EXIF tags directly from device file).
-  * Technical EXIF Inspector (ISO, aperture, shutter speed, lens focal length, GPS location).
+  * Share without metadata (lossless for JPEG/PNG, remuxed for video; temporary copies expire after an hour).
+  * Remove metadata from original (JPEG/PNG; asks for system write permission, verifies, and rolls back on failure).
+  * Details sheet with real EXIF (camera, ISO, aperture, shutter, focal length, GPS with "Open in Maps"); missing data is never invented.
   * **Move to Encrypted Vault** (Encrypts and locks item with AES-256-GCM).
 
 ---
 
 ### 1.4 Encrypted Vault (AES-256-GCM)
-* **Authenticated Encryption**: All vaulted media is encrypted using 256-bit AES-GCM with unique 12-byte random IVs and 16-byte authentication tags.
+* **Authenticated Encryption**: Media is encrypted in 256 KiB AES-256-GCM segments (constant memory, tamper and truncation detection) under a random data key, wrapped by your PIN and sealed by the Android Keystore.
 * **Light & Dark Mode**: Beautiful adaptive PIN entry keypad, indicator dots, and glowing lock badge.
-* **PIN Protection**: Default PIN is `1234` (or `0000`).
-* **Instant Isolation**: Moving a photo to the vault immediately hides it from the timeline, albums, and folder screens.
+* **PIN Protection**: Create your own 4–8 digit PIN (weak PINs rejected). Escalating lockout after wrong attempts, auto-lock in the background, change PIN, and an "erase vault" path if the PIN is forgotten.
+* **Safe Moves**: Items are hidden immediately, encrypted, and the original is deleted only after you approve; declining rolls the move back.
 * **Inspection & Restoration**:
   * Tap any vaulted item inside the unlocked vault to open its preview dialog with file details.
   * Tap **"Restore to Gallery"** to decrypt the photo and return it to your public gallery timeline.
-  * Tap **"Delete"** to permanently remove it.
+  * Tap **"Delete"** to permanently remove it (confirmation required — vaulted items are the only copy).
 
 ---
 

@@ -37,7 +37,9 @@ android {
     }
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // R8 full-mode shrinking/optimization: Compose is several times slower without it.
+            isMinifyEnabled = true
+            isShrinkResources = true
             signingConfig = signingConfigs.getByName("debug")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

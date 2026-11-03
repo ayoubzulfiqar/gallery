@@ -13,109 +13,91 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ayoubzulfiqar.gallery.ui.theme.GalleryColors
 import com.ayoubzulfiqar.gallery.ui.theme.GalleryIcons
 import com.ayoubzulfiqar.gallery.ui.theme.frostedGlass
+
+data class SelectionActions(
+    val onShare: (() -> Unit)? = null,
+    val onFavorite: (() -> Unit)? = null,
+    val onMoveToVault: (() -> Unit)? = null,
+    val onDelete: (() -> Unit)? = null,
+    val onSelectAll: (() -> Unit)? = null,
+    val onRestore: (() -> Unit)? = null,
+    val onClose: () -> Unit
+)
 
 @Composable
 fun MarqueeSelectionBar(
     selectedCount: Int,
+    totalCount: Int,
     visible: Boolean,
-    onShare: () -> Unit,
-    onFavorite: () -> Unit,
-    onAddToAlbum: () -> Unit,
-    onMoveToVault: () -> Unit,
-    onDelete: () -> Unit,
-    onClose: () -> Unit,
+    actions: SelectionActions,
+    allFavorite: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     AnimatedVisibility(
         visible = visible,
-        enter = slideInVertically(initialOffsetY = { it }),
-        exit = slideOutVertically(targetOffsetY = { it }),
+        enter = slideInVertically(initialOffsetY = { it * 2 }),
+        exit = slideOutVertically(targetOffsetY = { it * 2 }),
         modifier = modifier
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .frostedGlass(blurRadius = 24.dp)
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .padding(horizontal = 16.dp)
+                .frostedGlass(isDark = true, blurRadius = 24.dp)
+                .padding(start = 6.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                BarButton(GalleryIcons.Close, "Clear selection", Color.White.copy(alpha = 0.8f), actions.onClose)
                 Box(
-                    modifier = Modifier
-                        .size(26.dp)
-                        .background(Color(0xFF00B4D8), CircleShape),
+                    modifier = Modifier.size(26.dp).background(GalleryColors.Accent, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "$selectedCount",
+                        text = if (selectedCount > 999) "999+" else "$selectedCount",
                         color = Color.White,
-                        fontSize = 12.sp,
+                        fontSize = if (selectedCount > 99) 9.sp else 12.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
-                Text(
-                    text = "Selected",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.White
-                    )
-                )
             }
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onShare, modifier = Modifier.size(36.dp)) {
-                    Icon(
-                        imageVector = GalleryIcons.ShareArrow,
-                        contentDescription = "Share",
-                        tint = Color.White,
-                        modifier = Modifier.size(19.dp)
+            Row(horizontalArrangement = Arrangement.spacedBy(0.dp), verticalAlignment = Alignment.CenterVertically) {
+                actions.onSelectAll?.takeIf { selectedCount < totalCount }?.let {
+                    BarButton(GalleryIcons.SelectAll, "Select all", Color.White, it)
+                }
+                actions.onRestore?.let { BarButton(GalleryIcons.Restore, "Restore to gallery", GalleryColors.Accent, it) }
+                actions.onShare?.let { BarButton(GalleryIcons.ShareArrow, "Share", Color.White, it) }
+                actions.onFavorite?.let {
+                    BarButton(
+                        if (allFavorite) GalleryIcons.HeartFilled else GalleryIcons.HeartOutline,
+                        if (allFavorite) "Remove from favorites" else "Add to favorites",
+                        if (allFavorite) GalleryColors.Favorite else Color.White,
+                        it
                     )
                 }
-                IconButton(onClick = onMoveToVault, modifier = Modifier.size(36.dp)) {
-                    Icon(
-                        imageVector = GalleryIcons.Vault,
-                        contentDescription = "Move to Vault",
-                        tint = Color(0xFF00B4D8),
-                        modifier = Modifier.size(19.dp)
-                    )
-                }
-                IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
-                    Icon(
-                        imageVector = GalleryIcons.Trash,
-                        contentDescription = "Delete",
-                        tint = Color(0xFFFF453A),
-                        modifier = Modifier.size(19.dp)
-                    )
-                }
-                IconButton(onClick = onClose, modifier = Modifier.size(36.dp)) {
-                    Icon(
-                        imageVector = GalleryIcons.Close,
-                        contentDescription = "Close Selection",
-                        tint = Color.White.copy(alpha = 0.7f),
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
+                actions.onMoveToVault?.let { BarButton(GalleryIcons.Vault, "Move to vault", GalleryColors.Accent, it) }
+                actions.onDelete?.let { BarButton(GalleryIcons.Trash, "Delete", Color(0xFFFF453A), it) }
             }
         }
+    }
+}
+
+@Composable
+private fun BarButton(icon: ImageVector, description: String, tint: Color, onClick: () -> Unit) {
+    IconButton(onClick = onClick, modifier = Modifier.size(44.dp)) {
+        Icon(imageVector = icon, contentDescription = description, tint = tint, modifier = Modifier.size(20.dp))
     }
 }
