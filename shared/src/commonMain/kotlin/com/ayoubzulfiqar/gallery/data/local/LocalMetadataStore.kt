@@ -4,9 +4,9 @@ import com.ayoubzulfiqar.gallery.domain.model.EditRecipe
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 
 class LocalMetadataStore {
-    private val lock = Any()
 
     private val _favorites = MutableStateFlow<Set<String>>(emptySet())
     val favorites: StateFlow<Set<String>> = _favorites.asStateFlow()
@@ -21,41 +21,41 @@ class LocalMetadataStore {
     val editRecipes: StateFlow<Map<String, EditRecipe>> = _editRecipes.asStateFlow()
 
     fun toggleFavorite(id: String): Boolean {
-        synchronized(lock) {
-            val current = _favorites.value
-            val isNowFavorite = id !in current
-            _favorites.value = if (isNowFavorite) current + id else current - id
-            return isNowFavorite
+        var isNowFavorite = false
+        _favorites.update { current ->
+            isNowFavorite = id !in current
+            if (isNowFavorite) current + id else current - id
         }
+        return isNowFavorite
     }
 
     fun isFavorite(id: String): Boolean = id in _favorites.value
 
     fun addTag(id: String, tag: String) {
-        synchronized(lock) {
-            val current = _tags.value.toMutableMap()
-            val existing = current[id] ?: emptySet()
-            current[id] = existing + tag
-            _tags.value = current
+        _tags.update { current ->
+            val mutable = current.toMutableMap()
+            val existing = mutable[id] ?: emptySet()
+            mutable[id] = existing + tag
+            mutable
         }
     }
 
     fun removeTag(id: String, tag: String) {
-        synchronized(lock) {
-            val current = _tags.value.toMutableMap()
-            val existing = current[id] ?: return
-            current[id] = existing - tag
-            _tags.value = current
+        _tags.update { current ->
+            val mutable = current.toMutableMap()
+            val existing = mutable[id] ?: return@update current
+            mutable[id] = existing - tag
+            mutable
         }
     }
 
     fun getTags(id: String): Set<String> = _tags.value[id] ?: emptySet()
 
     fun saveEditRecipe(id: String, recipe: EditRecipe) {
-        synchronized(lock) {
-            val current = _editRecipes.value.toMutableMap()
-            current[id] = recipe
-            _editRecipes.value = current
+        _editRecipes.update { current ->
+            val mutable = current.toMutableMap()
+            mutable[id] = recipe
+            mutable
         }
     }
 

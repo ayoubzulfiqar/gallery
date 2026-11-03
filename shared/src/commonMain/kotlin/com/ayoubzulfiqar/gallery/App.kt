@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ayoubzulfiqar.gallery.data.datasource.FakePlatformMediaDataSource
+import com.ayoubzulfiqar.gallery.data.datasource.PlatformMediaDataSource
 import com.ayoubzulfiqar.gallery.data.local.LocalMetadataStore
 import com.ayoubzulfiqar.gallery.data.repository.DefaultMediaRepository
 import com.ayoubzulfiqar.gallery.domain.model.ExifMetadata
@@ -45,22 +46,26 @@ import com.ayoubzulfiqar.gallery.ui.viewer.ViewerViewModel
 import com.ayoubzulfiqar.gallery.vault.data.DefaultVaultRepository
 
 @Composable
-fun App() {
+fun App(
+    platformDataSource: PlatformMediaDataSource? = null
+) {
     GalleryTheme(darkTheme = true) {
         val navState = rememberGalleryNavState()
 
-        // Shared data repositories (Singletons per session)
-        val platformSource = remember {
-            FakePlatformMediaDataSource().apply {
+        // Shared data repositories
+        val activePlatformSource = remember(platformDataSource) {
+            platformDataSource ?: FakePlatformMediaDataSource().apply {
                 populateWithSyntheticMedia(count = 120)
             }
         }
         val localStore = remember { LocalMetadataStore() }
-        val mediaRepository = remember { DefaultMediaRepository(platformSource, localStore) }
+        val mediaRepository = remember(activePlatformSource) {
+            DefaultMediaRepository(activePlatformSource, localStore)
+        }
         val vaultRepository = remember { DefaultVaultRepository() }
 
-        val timelineViewModel = remember { TimelineViewModel(mediaRepository) }
-        val vaultViewModel = remember { VaultViewModel(vaultRepository) }
+        val timelineViewModel = remember(mediaRepository) { TimelineViewModel(mediaRepository) }
+        val vaultViewModel = remember(vaultRepository) { VaultViewModel(vaultRepository) }
 
         var activeExifItem by remember { mutableStateOf<ExifMetadata?>(null) }
 

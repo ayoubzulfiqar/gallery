@@ -26,7 +26,6 @@ class DefaultVaultRepository(
     override suspend fun unlockVault(pin: String): Boolean = mutex.withLock {
         if (pin == defaultPin) {
             isUnlocked = true
-            // Derive 32-byte key from PIN
             derivedKey = deriveKeyFromPin(pin)
             true
         } else {
@@ -70,11 +69,24 @@ class DefaultVaultRepository(
         val key = derivedKey!!
         val pair = encryptedStore[vaultId] ?: throw IllegalStateException("Vault item not found")
         val encrypted = pair.second
-        val decrypted = cipher.decrypt(encrypted, key)
+        try {
+            val decrypted = cipher.decrypt(encrypted, key)
+            encryptedStore.remove(vaultId)
+            vaultedItems.removeAll { "vault_${it.id}" == vaultId }
+            decrypted
+        } catch (e: Exception) {
+            throw VaultError.IntegrityCompromised("Encrypted ciphertext corrupted or authentication tag mismatch")
+        }
+    }
 
-        encryptedStore.remove(vaultId)
-        vaultedItems.removeAll { "vault_${it.id}" == vaultId }
-        decrypted
+    fun tamperWithStoredCiphertext(vaultId: String) {
+        val pair = encryptedStore[vaultId] ?: return
+        val corruptedBytes = pair.second.copyOf()
+        if (corruptedBytes.isNotEmpty()) {
+            val lastIdx = corruptedBytes.size - 1
+            corruptedBytes[lastIdx] = (corruptedBytes[lastIdx].toInt() xor 0xFF).toByte()
+        }
+        encryptedStore[vaultId] = Pair(pair.first, corruptedBytes)
     }
 
     private fun deriveKeyFromPin(pin: String): ByteArray {

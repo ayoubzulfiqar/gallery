@@ -6,10 +6,10 @@ import com.ayoubzulfiqar.gallery.domain.model.MediaType
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 
 class FakePlatformMediaDataSource : PlatformMediaDataSource {
     private val _mediaFlow = MutableStateFlow<List<MediaItem>>(emptyList())
-    private val itemsLock = Any()
 
     fun populateWithSyntheticMedia(count: Int) {
         val now = 1730000000000L
@@ -33,9 +33,7 @@ class FakePlatformMediaDataSource : PlatformMediaDataSource {
                 longitude = -122.4194 + (i % 5) * 0.01
             )
         }
-        synchronized(itemsLock) {
-            _mediaFlow.value = generated
-        }
+        _mediaFlow.value = generated
     }
 
     override fun observeMedia(batchSize: Int): Flow<List<MediaItem>> = _mediaFlow.asStateFlow()
@@ -48,9 +46,9 @@ class FakePlatformMediaDataSource : PlatformMediaDataSource {
     }
 
     override suspend fun deleteMedia(ids: List<String>): Boolean {
-        synchronized(itemsLock) {
-            val toRemove = ids.toSet()
-            _mediaFlow.value = _mediaFlow.value.filterNot { it.id in toRemove }
+        val toRemove = ids.toSet()
+        _mediaFlow.update { current ->
+            current.filterNot { it.id in toRemove }
         }
         return true
     }

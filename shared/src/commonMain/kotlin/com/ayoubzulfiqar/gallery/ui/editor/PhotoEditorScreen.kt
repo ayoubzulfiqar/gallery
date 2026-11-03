@@ -1,5 +1,6 @@
 package com.ayoubzulfiqar.gallery.ui.editor
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -8,7 +9,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -35,12 +35,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ayoubzulfiqar.gallery.editor.ColorMatrixHelper
 import com.ayoubzulfiqar.gallery.editor.FilterPresets
-import com.ayoubzulfiqar.gallery.ui.theme.frostedGlass
 
 @Composable
 fun PhotoEditorScreen(
@@ -120,6 +121,7 @@ fun PhotoEditorScreen(
             ) {
                 val tintHue = (viewModel.mediaItem.id.hashCode() and 0xFF) / 255f
                 val crop = recipe.cropRect
+                val baseColor = Color.hsv(tintHue * 360f, 0.45f, 0.55f)
 
                 Box(
                     modifier = Modifier
@@ -130,13 +132,6 @@ fun PhotoEditorScreen(
                             scaleY = if (recipe.flipVertical) -1f else 1f
                         }
                         .clip(RoundedCornerShape(8.dp))
-                        .background(
-                            Color.hsv(
-                                (tintHue * 360f + recipe.adjustments.warmth * 20f).coerceIn(0f, 360f),
-                                0.4f * recipe.adjustments.saturation,
-                                0.5f + recipe.adjustments.brightness * 0.3f
-                            )
-                        )
                         .border(
                             if (crop != null) 2.dp else 0.dp,
                             Color(0xFF80D4FF),
@@ -144,6 +139,22 @@ fun PhotoEditorScreen(
                         ),
                     contentAlignment = Alignment.Center
                 ) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val paint = Paint().apply {
+                            color = baseColor
+                            colorFilter = ColorFilter.colorMatrix(ColorMatrix(colorMatrixArray))
+                        }
+                        drawIntoCanvas { canvas ->
+                            canvas.drawRect(
+                                left = 0f,
+                                top = 0f,
+                                right = size.width,
+                                bottom = size.height,
+                                paint = paint
+                            )
+                        }
+                    }
+
                     Text(
                         text = viewModel.mediaItem.displayName,
                         color = Color.White,
@@ -230,24 +241,48 @@ fun PhotoEditorScreen(
                                 }
                             }
 
-                            // Slider for active parameter
-                            val (currentVal, minVal, maxVal, onChange) = when (activeAdjustmentParam) {
-                                "Contrast" -> listOf(recipe.adjustments.contrast, 0f, 2f, { v: Float -> viewModel.updateContrast(v) })
-                                "Saturation" -> listOf(recipe.adjustments.saturation, 0f, 2f, { v: Float -> viewModel.updateSaturation(v) })
-                                "Warmth" -> listOf(recipe.adjustments.warmth, -1f, 1f, { v: Float -> viewModel.updateWarmth(v) })
-                                "Vignette" -> listOf(recipe.adjustments.vignette, 0f, 1f, { v: Float -> viewModel.updateVignette(v) })
-                                else -> listOf(recipe.adjustments.brightness, -1f, 1f, { v: Float -> viewModel.updateBrightness(v) })
+                            when (activeAdjustmentParam) {
+                                "Contrast" -> {
+                                    Slider(
+                                        value = recipe.adjustments.contrast,
+                                        onValueChange = { viewModel.updateContrast(it) },
+                                        valueRange = 0f..2f,
+                                        colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = Color(0xFF00B4D8))
+                                    )
+                                }
+                                "Saturation" -> {
+                                    Slider(
+                                        value = recipe.adjustments.saturation,
+                                        onValueChange = { viewModel.updateSaturation(it) },
+                                        valueRange = 0f..2f,
+                                        colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = Color(0xFF00B4D8))
+                                    )
+                                }
+                                "Warmth" -> {
+                                    Slider(
+                                        value = recipe.adjustments.warmth,
+                                        onValueChange = { viewModel.updateWarmth(it) },
+                                        valueRange = -1f..1f,
+                                        colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = Color(0xFF00B4D8))
+                                    )
+                                }
+                                "Vignette" -> {
+                                    Slider(
+                                        value = recipe.adjustments.vignette,
+                                        onValueChange = { viewModel.updateVignette(it) },
+                                        valueRange = 0f..1f,
+                                        colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = Color(0xFF00B4D8))
+                                    )
+                                }
+                                else -> {
+                                    Slider(
+                                        value = recipe.adjustments.brightness,
+                                        onValueChange = { viewModel.updateBrightness(it) },
+                                        valueRange = -1f..1f,
+                                        colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = Color(0xFF00B4D8))
+                                    )
+                                }
                             }
-
-                            Slider(
-                                value = currentVal as Float,
-                                onValueChange = { (onChange as (Float) -> Unit)(it) },
-                                valueRange = (minVal as Float)..(maxVal as Float),
-                                colors = SliderDefaults.colors(
-                                    thumbColor = Color.White,
-                                    activeTrackColor = Color(0xFF00B4D8)
-                                )
-                            )
                         }
                     }
                     EditorTab.CROP -> {

@@ -2,11 +2,13 @@ package com.ayoubzulfiqar.gallery.vault
 
 import com.ayoubzulfiqar.gallery.domain.model.MediaItem
 import com.ayoubzulfiqar.gallery.domain.model.MediaType
+import com.ayoubzulfiqar.gallery.domain.model.VaultError
 import com.ayoubzulfiqar.gallery.vault.data.DefaultVaultRepository
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -52,5 +54,29 @@ class DefaultVaultRepositoryTest {
 
         repo.lockVault()
         assertFalse(repo.isVaultUnlocked())
+    }
+
+    @Test
+    fun testCorruptedCiphertextThrowsVaultIntegrityCompromised() = runTest {
+        val repo = DefaultVaultRepository(defaultPin = "1111")
+        repo.unlockVault("1111")
+        val item = MediaItem(
+            id = "photo_corrupt",
+            uri = "file://corrupt.jpg",
+            displayName = "corrupt.jpg",
+            mimeType = "image/jpeg",
+            mediaType = MediaType.IMAGE,
+            dateTakenMillis = 1000L,
+            dateModifiedMillis = 1000L,
+            width = 100,
+            height = 100,
+            sizeBytes = 12
+        )
+        val entry = repo.moveToVault(item, "Secret".encodeToByteArray())
+        repo.tamperWithStoredCiphertext(entry.id)
+
+        assertFailsWith<VaultError.IntegrityCompromised> {
+            repo.restoreFromVault(entry.id)
+        }
     }
 }

@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ayoubzulfiqar.gallery.domain.model.MediaType
@@ -37,12 +39,24 @@ fun LightboxViewerScreen(
     modifier: Modifier = Modifier
 ) {
     val isChromeVisible by viewModel.isChromeVisible.collectAsState()
-    val item = viewModel.getCurrentItem()
+    val items by viewModel.items.collectAsState()
+    val currentIndex by viewModel.currentIndex.collectAsState()
+
+    val item = items.getOrNull(currentIndex)
 
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(Color.Black)
+            .pointerInput(items.size, currentIndex) {
+                detectHorizontalDragGestures { _, dragAmount ->
+                    if (dragAmount < -50f && currentIndex < items.lastIndex) {
+                        viewModel.setIndex(currentIndex + 1)
+                    } else if (dragAmount > 50f && currentIndex > 0) {
+                        viewModel.setIndex(currentIndex - 1)
+                    }
+                }
+            }
     ) {
         if (item != null) {
             ZoomableMediaBox(
@@ -50,7 +64,6 @@ fun LightboxViewerScreen(
                 onTap = { viewModel.toggleChrome() },
                 modifier = Modifier.fillMaxSize()
             ) {
-                // High-resolution media canvas representation
                 val tintHue = (item.id.hashCode() and 0xFF) / 255f
                 Box(
                     modifier = Modifier
@@ -73,7 +86,6 @@ fun LightboxViewerScreen(
                 }
             }
 
-            // Video player scrub overlay
             if (item.mediaType == MediaType.VIDEO && item.durationMs != null) {
                 AnimatedVisibility(
                     visible = isChromeVisible,
@@ -107,6 +119,12 @@ fun LightboxViewerScreen(
                 TextButton(onClick = onBack, colors = ButtonDefaults.textButtonColors(contentColor = Color.White)) {
                     Text("← Back", fontSize = 14.sp)
                 }
+
+                Text(
+                    text = "${currentIndex + 1} of ${items.size}",
+                    color = Color.White.copy(alpha = 0.8f),
+                    fontSize = 13.sp
+                )
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     TextButton(

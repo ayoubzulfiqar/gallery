@@ -43,14 +43,14 @@ fun ZoomableMediaBox(
             .pointerInput(Unit) {
                 detectTapGestures(
                     onTap = { onTap() },
-                    onDoubleTap = { tapOffset ->
+                    onDoubleTap = {
                         scale = if (scale > 1.2f) 1.0f else 2.5f
                         offset = Offset.Zero
                     }
                 )
             }
             .pointerInput(Unit) {
-                detectTransformGestures { centroid, pan, zoom, _ ->
+                detectTransformGestures { _, pan, zoom, _ ->
                     if (scale > 1.0f || zoom > 1.0f) {
                         scale = (scale * zoom).coerceIn(1.0f, 5.0f)
                         val maxPanX = (scale - 1.0f) * 500f
@@ -60,12 +60,37 @@ fun ZoomableMediaBox(
                             y = (offset.y + pan.y).coerceIn(-maxPanY, maxPanY)
                         )
                     } else if (pan.y > 0 || dragOffsetY.value > 0) {
-                        // Vertical swipe-to-dismiss gesture when not zoomed in
                         coroutineScope.launch {
                             val newY = (dragOffsetY.value + pan.y).coerceAtLeast(0f)
                             dragOffsetY.snapTo(newY)
-                            if (newY > 300f) {
-                                onDismissRequest()
+                        }
+                    }
+                }
+            }
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        val allReleased = event.changes.all { !it.pressed }
+                        if (allReleased && dragOffsetY.value > 0f) {
+                            if (dragOffsetY.value > 200f) {
+                                coroutineScope.launch {
+                                    dragOffsetY.animateTo(
+                                        targetValue = 1000f,
+                                        animationSpec = spring(stiffness = Spring.StiffnessMediumLow)
+                                    )
+                                    onDismissRequest()
+                                }
+                            } else {
+                                coroutineScope.launch {
+                                    dragOffsetY.animateTo(
+                                        targetValue = 0f,
+                                        animationSpec = spring(
+                                            dampingRatio = Spring.DampingRatioLowBouncy,
+                                            stiffness = Spring.StiffnessMediumLow
+                                        )
+                                    )
+                                }
                             }
                         }
                     }
