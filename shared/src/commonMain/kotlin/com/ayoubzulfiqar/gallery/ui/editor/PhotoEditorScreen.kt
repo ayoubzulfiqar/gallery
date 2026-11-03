@@ -47,11 +47,13 @@ import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ayoubzulfiqar.gallery.editor.ColorMatrixHelper
 import com.ayoubzulfiqar.gallery.editor.FilterPresets
+import com.ayoubzulfiqar.gallery.ui.common.AsyncMediaImage
 import com.ayoubzulfiqar.gallery.ui.theme.GalleryIcons
 import com.ayoubzulfiqar.gallery.ui.theme.frostedGlass
 
@@ -184,27 +186,12 @@ fun PhotoEditorScreen(
                         ),
                     contentAlignment = Alignment.Center
                 ) {
-                    Canvas(modifier = Modifier.fillMaxSize()) {
-                        val paint = Paint().apply {
-                            color = baseColor
-                            colorFilter = ColorFilter.colorMatrix(ColorMatrix(colorMatrixArray))
-                        }
-                        drawIntoCanvas { canvas ->
-                            canvas.drawRect(
-                                left = 0f,
-                                top = 0f,
-                                right = size.width,
-                                bottom = size.height,
-                                paint = paint
-                            )
-                        }
-                    }
-
-                    Text(
-                        text = viewModel.mediaItem.displayName,
-                        color = Color.White,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.SemiBold
+                    AsyncMediaImage(
+                        uri = viewModel.mediaItem.uri,
+                        contentDescription = viewModel.mediaItem.displayName,
+                        modifier = Modifier.fillMaxSize(),
+                        isThumbnail = false,
+                        contentScale = ContentScale.Fit
                     )
                 }
             }

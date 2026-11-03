@@ -18,11 +18,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ayoubzulfiqar.gallery.domain.model.MediaItem
 import com.ayoubzulfiqar.gallery.domain.model.MediaType
+import com.ayoubzulfiqar.gallery.ui.common.AsyncMediaImage
 import com.ayoubzulfiqar.gallery.ui.theme.GalleryIcons
 
 @Composable
@@ -52,12 +54,13 @@ fun MediaThumbnailItem(
                 onLongClick = onLongClick
             )
     ) {
-        // Thumbnail placeholder background with subtle tint based on ID
-        val tintHue = (item.id.hashCode() and 0xFF) / 255f
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.hsv(tintHue * 360f, 0.35f, 0.38f))
+        // Asynchronously loaded and cached thumbnail from device
+        AsyncMediaImage(
+            uri = item.uri,
+            contentDescription = item.displayName,
+            modifier = Modifier.fillMaxSize(),
+            isThumbnail = true,
+            contentScale = ContentScale.Crop
         )
 
         // Video duration badge with custom Play vector icon

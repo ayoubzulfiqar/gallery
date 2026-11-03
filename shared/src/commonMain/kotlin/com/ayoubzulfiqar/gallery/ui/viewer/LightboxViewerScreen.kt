@@ -36,10 +36,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ayoubzulfiqar.gallery.domain.model.MediaType
+import com.ayoubzulfiqar.gallery.ui.common.AsyncMediaImage
 import com.ayoubzulfiqar.gallery.ui.theme.GalleryIcons
 import com.ayoubzulfiqar.gallery.ui.theme.frostedGlass
 
@@ -84,35 +86,13 @@ fun LightboxViewerScreen(
                 onTap = { viewModel.toggleChrome() },
                 modifier = Modifier.fillMaxSize()
             ) {
-                val tintHue = (item.id.hashCode() and 0xFF) / 255f
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.hsv(tintHue * 360f, 0.4f, 0.45f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(horizontal = 24.dp)
-                    ) {
-                        Text(
-                            text = item.displayName,
-                            color = Color.White,
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 20.sp
-                            )
-                        )
-                        Text(
-                            text = "${item.width} × ${item.height} • ${(item.sizeBytes / 1_000_000.0).toString().take(4)} MB",
-                            color = Color.White.copy(alpha = 0.7f),
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                fontSize = 13.sp
-                            ),
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
-                    }
-                }
+                AsyncMediaImage(
+                    uri = item.uri,
+                    contentDescription = item.displayName,
+                    modifier = Modifier.fillMaxSize(),
+                    isThumbnail = false,
+                    contentScale = ContentScale.Fit
+                )
             }
 
             if (item.mediaType == MediaType.VIDEO && item.durationMs != null) {
