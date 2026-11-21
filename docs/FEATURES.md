@@ -7,7 +7,7 @@ A modern, fast, privacy-focused gallery application built with **Compose Multipl
 ## 1. Feature Highlights
 
 ### 1.1 Photos Timeline (Gallery Go Style)
-* **Chronological Grouping**: Media is organized into intuitive monthly sections ("November 2026", "October 2026", etc.) with sticky headers and item counts.
+* **Chronological Grouping**: Media is organized into intuitive monthly sections ("November 2026", "October 2026", etc.) with section headers and item counts.
 * **Top Quick Folders Carousel**: Horizontal carousel above the timeline for quick access to your most active folders:
   * Camera
   * Screenshots
@@ -38,7 +38,7 @@ A modern, fast, privacy-focused gallery application built with **Compose Multipl
 * **Seamless Panning & Swiping**: Drag to pan with 1 finger when zoomed in; swipes smoothly to the next image when fully zoomed out.
 * **Direct Google Lens**: Tap the **Lens** button to directly launch Google Lens image search without seeing Android share sheets.
 * **Native Video Player**: Tap any video to launch your device's default video player (e.g., MX Player, VLC, Photos).
-* **Frosted Glass Chrome**: Top and bottom control bars feature blur/frosted glass that adapts dynamically to Light and Dark mode.
+* **Frosted Glass Chrome**: Top and bottom control bars use translucent frosted-style panels that adapt dynamically to Light and Dark mode.
 * **Options & Tools Menu**:
   * Set as Wallpaper (Home / Lock screen).
   * Share without metadata (lossless for JPEG/PNG, remuxed for video; temporary copies expire after an hour).
@@ -49,7 +49,7 @@ A modern, fast, privacy-focused gallery application built with **Compose Multipl
 ---
 
 ### 1.4 Encrypted Vault (AES-256-GCM)
-* **Authenticated Encryption**: Media is encrypted in 256 KiB AES-256-GCM segments (constant memory, tamper and truncation detection) under a random data key, wrapped by your PIN and sealed by the Android Keystore.
+* **Authenticated Encryption**: Media is encrypted in 256 KiB AES-256-GCM segments (constant memory, tamper and truncation detection) under a random data key, wrapped by your PIN and sealed by a device-bound key (Android Keystore / iOS Keychain).
 * **Light & Dark Mode**: Beautiful adaptive PIN entry keypad, indicator dots, and glowing lock badge.
 * **PIN Protection**: Create your own 4–8 digit PIN (weak PINs rejected). Escalating lockout after wrong attempts, auto-lock in the background, change PIN, and an "erase vault" path if the PIN is forgotten.
 * **Safe Moves**: Items are hidden immediately, encrypted, and the original is deleted only after you approve; declining rolls the move back.
@@ -60,6 +60,11 @@ A modern, fast, privacy-focused gallery application built with **Compose Multipl
 
 ---
 
-### 1.5 System Back Navigation
+### 1.5 Recoverable Trash (Android 11+)
+* Deleted items land in the system trash and remain browsable inside the app (trash button in the Photos header, or "View" on the delete snackbar).
+* **Restore** returns items to the gallery with system consent; **Delete** and **Empty trash** are permanent and confirmed.
+* The header shows the soonest auto-delete time (the system keeps trashed items for 30 days).
+
+### 1.6 System Back Navigation
 * Integrated with Android's system back gesture and hardware back button.
 * Pressing back inside a folder detail view, lightbox viewer, or vault returns cleanly to the previous screen rather than closing the application.
