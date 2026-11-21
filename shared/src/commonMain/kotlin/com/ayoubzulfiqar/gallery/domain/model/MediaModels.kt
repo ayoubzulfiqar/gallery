@@ -4,8 +4,7 @@ enum class MediaType {
     IMAGE,
     VIDEO,
     RAW,
-    GIF,
-    BURST;
+    GIF;
 
     val isVideo: Boolean get() = this == VIDEO
 
@@ -50,7 +49,9 @@ data class MediaItem(
     val bucketId: String? = null,
     val bucketName: String? = null,
     /** Folder path relative to the storage volume root, e.g. "DCIM/Camera/". */
-    val relativePath: String? = null
+    val relativePath: String? = null,
+    /** When trashed: epoch millis at which the system permanently removes the item (null if unknown). */
+    val trashedExpiresMillis: Long? = null
 ) {
     val isVideo: Boolean get() = mediaType == MediaType.VIDEO
 
