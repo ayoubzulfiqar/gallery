@@ -1,6 +1,7 @@
 package com.ayoubzulfiqar.gallery.platform
 
 import com.ayoubzulfiqar.gallery.domain.model.MediaItem
+import com.ayoubzulfiqar.gallery.domain.model.WallpaperCropRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,7 +21,13 @@ interface PlatformActionHandler {
     suspend fun shareSanitized(items: List<MediaItem>): ActionResult
 
     fun launchGoogleLens(item: MediaItem): ActionResult
-    fun setAsWallpaper(item: MediaItem): ActionResult
+
+    /**
+     * Applies the exact region the user aligned in the in-app cropper as wallpaper.
+     * Deliberately does NOT use the system crop-and-set intent: OEM croppers on some devices
+     * discard the aligned position for wide images and apply the leftmost slice.
+     */
+    suspend fun applyWallpaper(item: MediaItem, request: WallpaperCropRequest): ActionResult
     fun playVideo(item: MediaItem): ActionResult
     fun openMap(latitude: Double, longitude: Double, label: String): ActionResult
     fun openAppSettings(): ActionResult
@@ -31,7 +38,7 @@ class NoOpPlatformActionHandler : PlatformActionHandler {
     override fun share(items: List<MediaItem>) = unavailable
     override suspend fun shareSanitized(items: List<MediaItem>) = unavailable
     override fun launchGoogleLens(item: MediaItem) = unavailable
-    override fun setAsWallpaper(item: MediaItem) = unavailable
+    override suspend fun applyWallpaper(item: MediaItem, request: WallpaperCropRequest) = unavailable
     override fun playVideo(item: MediaItem) = unavailable
     override fun openMap(latitude: Double, longitude: Double, label: String) = unavailable
     override fun openAppSettings() = unavailable
