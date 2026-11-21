@@ -104,14 +104,15 @@ fun EmptyState(
     }
 }
 
-/** Single-choice pill row used for media filters. */
+/** Single-choice pill row used for media filters; [trailing] adds an action chip after the options. */
 @Composable
 fun <T> ChoiceChipRow(
     options: List<T>,
     selected: T,
     label: (T) -> String,
     onSelect: (T) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    trailing: (@Composable () -> Unit)? = null
 ) {
     Row(
         modifier = modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 4.dp),
@@ -140,6 +141,7 @@ fun <T> ChoiceChipRow(
                 )
             }
         }
+        trailing?.invoke()
     }
 }
 
