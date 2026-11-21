@@ -23,6 +23,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.FileOutputStream
 import java.nio.ByteBuffer
 
 class AndroidMetadataStripper(
@@ -74,10 +75,13 @@ class AndroidMetadataStripper(
             }
             ImageContainer.OTHER -> {
                 if (item.mimeType.equals("image/gif", ignoreCase = true)) {
-                    // GIF has no EXIF/GPS; re-encoding would destroy the animation.
+                    // Drop comment/XMP extensions but keep looping, timing and pixels intact.
                     val out = uniqueShareFile(baseName, "gif")
-                    resolver.openInputStream(uri)!!.use { input -> out.outputStream().use { input.copyTo(it) } }
-                    return SanitizationSummary(Uri.fromFile(out).toString(), 0, false, true, SanitizationMethod.UNCHANGED)
+                    val report = stripLosslessGif(uri, out)
+                    return SanitizationSummary(
+                        Uri.fromFile(out).toString(), report.removedBlocks, false, true,
+                        if (report.removedBlocks == 0) SanitizationMethod.UNCHANGED else SanitizationMethod.LOSSLESS
+                    )
                 }
                 // HEIC/WebP/RAW: decode (orientation applied) and re-encode without any metadata.
                 val bitmap = AndroidBitmaps.decodeImage(resolver, uri, MAX_REENCODE_DIMENSION, software = true)
@@ -105,6 +109,15 @@ class AndroidMetadataStripper(
                     ImageContainer.PNG -> PngMetadataStripper.strip(source, sink)
                     ImageContainer.OTHER -> throw UnsupportedImageFormatException("Not a JPEG or PNG file")
                 }
+            }
+        }
+    }
+
+    private fun stripLosslessGif(uri: Uri, out: File): StripReport {
+        val input = resolver.openInputStream(uri) ?: throw IllegalStateException("Cannot open image")
+        return input.buffered(256 * 1024).asByteSource().use { source ->
+            out.outputStream().buffered(256 * 1024).asByteSink().use { sink ->
+                GifMetadataStripper.strip(source, sink)
             }
         }
     }
@@ -169,12 +182,18 @@ class AndroidMetadataStripper(
             }
             if (rotation != 0) muxer.setOrientationHint(rotation)
             muxer.start()
-            val buffer = ByteBuffer.allocate(bufferSize)
+            var buffer = ByteBuffer.allocate(bufferSize)
             val info = MediaCodec.BufferInfo()
             while (true) {
                 val track = extractor.sampleTrackIndex
                 if (track < 0) break
-                val size = extractor.readSampleData(buffer, 0)
+                var size = extractor.readSampleData(buffer, 0)
+                // A sample that exactly fills the buffer may be truncated by an under-reported
+                // KEY_MAX_INPUT_SIZE; grow and re-read the same sample before trusting it.
+                while (size == buffer.capacity()) {
+                    buffer = ByteBuffer.allocate(buffer.capacity() * 2)
+                    size = extractor.readSampleData(buffer, 0)
+                }
                 if (size < 0) break
                 val target = trackMap[track]
                 if (target != null) {
@@ -202,6 +221,7 @@ class AndroidMetadataStripper(
         val uri = Uri.parse(item.uri)
         val stripped = File(workDir, "stripped_${System.nanoTime()}")
         val backup = File(workDir, "backup_${System.nanoTime()}")
+        val journal = File(workDir, "journal_${System.nanoTime()}")
         try {
             val report = stripLossless(uri, stripped)
             if (report.removedBlocks == 0) {
@@ -216,12 +236,17 @@ class AndroidMetadataStripper(
             if (!ensureWriteAccess(uri)) return@withContext SanitizationResult.Cancelled
 
             resolver.openInputStream(uri)!!.use { input -> backup.outputStream().use { input.copyTo(it) } }
+            // Durable record BEFORE the original is truncated: if the process dies mid-write,
+            // recoverInterruptedStrips() restores the backup on the next launch.
+            writeJournal(journal, uri, backup)
             try {
                 writeInto(uri, stripped)
                 check(countBytes(uri) == stripped.length()) { "Size mismatch after write" }
+                journal.delete()
             } catch (e: Exception) {
                 Log.e(TAG, "In-place write failed, restoring backup", e)
                 runCatching { writeInto(uri, backup) }
+                journal.delete()
                 return@withContext SanitizationResult.Failure("Couldn't update the file; it was left unchanged")
             }
             SanitizationResult.Success(
@@ -236,7 +261,48 @@ class AndroidMetadataStripper(
             SanitizationResult.Failure(e.message ?: "Couldn't remove metadata")
         } finally {
             stripped.delete()
-            backup.delete()
+            // Keep the backup while a journal still points at it (recovery may need it).
+            if (!journal.exists()) backup.delete()
+        }
+    }
+
+    private fun writeJournal(journal: File, uri: Uri, backup: File) {
+        FileOutputStream(journal).use { out ->
+            out.write("${uri}\n${backup.absolutePath}\n".toByteArray())
+            out.fd.sync()
+        }
+    }
+
+    /**
+     * Restores originals whose in-place strip was interrupted by process death. Called once per
+     * process after the consent broker is attached; write consent is re-requested because the
+     * previous session's grant does not survive restarts.
+     */
+    suspend fun recoverInterruptedStrips(notify: (String) -> Unit = {}) {
+        val journals = workDir.listFiles()?.filter { it.name.startsWith("journal_") }?.sortedBy { it.name } ?: return
+        for (journal in journals) {
+            val lines = runCatching { journal.readLines() }.getOrDefault(emptyList())
+            val uri = lines.getOrNull(0)?.takeIf { it.isNotBlank() }?.let(Uri::parse)
+            val backup = lines.getOrNull(1)?.takeIf { it.isNotBlank() }?.let(::File)
+            if (uri == null || backup == null || !backup.isFile || backup.length() == 0L) {
+                journal.delete()
+                continue
+            }
+            try {
+                if (!ensureWriteAccess(uri)) {
+                    notify("A photo cleanup was interrupted. Allow access to finish restoring the original.")
+                    continue // keep journal + backup for the next attempt
+                }
+                writeInto(uri, backup)
+                check(countBytes(uri) == backup.length()) { "Size mismatch after recovery" }
+                journal.delete()
+                backup.delete()
+                notify("Restored the original photo after an interrupted cleanup.")
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "Interrupted-strip recovery failed for $uri", e)
+            }
         }
     }
 
@@ -268,7 +334,10 @@ class AndroidMetadataStripper(
     fun purgeOldShareFiles(maxAgeMillis: Long) {
         val cutoff = System.currentTimeMillis() - maxAgeMillis
         shareDir.listFiles()?.forEach { dir -> if (dir.lastModified() < cutoff) dir.deleteRecursively() }
-        workDir.listFiles()?.forEach { if (it.lastModified() < cutoff) it.delete() }
+        // Journals and their backups belong to recoverInterruptedStrips(), not to the TTL purge.
+        workDir.listFiles()?.forEach {
+            if (!it.name.startsWith("journal_") && !it.name.startsWith("backup_") && it.lastModified() < cutoff) it.delete()
+        }
     }
 
     private fun String.sanitizeFileName(): String = replace(Regex("[^A-Za-z0-9._ -]"), "_").take(80)
