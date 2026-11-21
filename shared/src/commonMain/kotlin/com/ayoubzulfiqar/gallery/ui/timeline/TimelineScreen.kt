@@ -29,7 +29,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -68,6 +70,8 @@ fun TimelineScreen(
     themeMode: ThemeMode,
     onToggleTheme: () -> Unit,
     modifier: Modifier = Modifier,
+    hasTrash: Boolean = false,
+    onOpenTrash: () -> Unit = {},
     banner: (@Composable () -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -86,7 +90,9 @@ fun TimelineScreen(
                 density = density,
                 themeMode = themeMode,
                 onDensityChange = viewModel::setDensity,
-                onToggleTheme = onToggleTheme
+                onToggleTheme = onToggleTheme,
+                hasTrash = hasTrash,
+                onOpenTrash = onOpenTrash
             )
             banner?.invoke()
             ChoiceChipRow(
@@ -137,7 +143,10 @@ fun TimelineScreen(
             }
         }
 
-        val selectedItems = if (isSelectionMode) uiState.items.filter { it.id in selectedIds } else emptyList()
+        // Derived once per state change instead of on every recomposition of the screen.
+        val selectedItems by remember {
+            derivedStateOf { if (selectedIds.isEmpty()) emptyList() else uiState.items.filter { it.id in selectedIds } }
+        }
         MarqueeSelectionBar(
             selectedCount = selectedIds.size,
             totalCount = uiState.totalCount,
@@ -175,7 +184,9 @@ private fun TimelineHeader(
     density: TimelineDensity,
     themeMode: ThemeMode,
     onDensityChange: (TimelineDensity) -> Unit,
-    onToggleTheme: () -> Unit
+    onToggleTheme: () -> Unit,
+    hasTrash: Boolean = false,
+    onOpenTrash: () -> Unit = {}
 ) {
     Row(
         modifier = Modifier
@@ -200,6 +211,23 @@ private fun TimelineHeader(
                     text = if (totalCount == 1) "1 item" else "$totalCount items",
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f)
+                )
+            }
+        }
+
+        if (hasTrash) {
+            IconButton(
+                onClick = onOpenTrash,
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.06f))
+            ) {
+                Icon(
+                    imageVector = GalleryIcons.Trash,
+                    contentDescription = "Open trash",
+                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f),
+                    modifier = Modifier.size(19.dp)
                 )
             }
         }
@@ -268,7 +296,7 @@ private fun QuickFolderRow(folders: List<MediaFolder>, onFolderClick: (String, S
         contentPadding = PaddingValues(horizontal = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        items(folders, key = { it.id }) { folder ->
+        items(folders, key = { it.id }, contentType = { "quick-folder" }) { folder ->
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
