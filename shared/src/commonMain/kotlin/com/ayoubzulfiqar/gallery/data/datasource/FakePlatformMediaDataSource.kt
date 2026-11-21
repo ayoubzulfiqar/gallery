@@ -22,11 +22,13 @@ class FakePlatformMediaDataSource(
     override val capabilities: MediaCapabilities = MediaCapabilities(isDemoLibrary = true)
 ) : PlatformMediaDataSource {
     private val _mediaFlow = MutableStateFlow<List<MediaItem>>(emptyList())
+    private val _trashedFlow = MutableStateFlow<List<MediaItem>>(emptyList())
     private val content = mutableMapOf<String, ByteArray>()
     private var importCounter = 0
 
     /** Test hooks. */
     var cancelNextDelete: Boolean = false
+    var cancelNextRestore: Boolean = false
     var failImports: Boolean = false
     var refreshCount: Int = 0
         private set
@@ -65,17 +67,36 @@ class FakePlatformMediaDataSource(
             )
         }
         generated.forEach { content[it.id] = syntheticBytes(it.id) }
+        _trashedFlow.value = emptyList()
         _mediaFlow.value = generated.sortedByDescending { it.dateTakenMillis }
     }
 
     fun setItems(items: List<MediaItem>) {
         items.forEach { content.getOrPut(it.id) { syntheticBytes(it.id) } }
+        _trashedFlow.value = emptyList()
         _mediaFlow.value = items.sortedByDescending { it.dateTakenMillis }
     }
 
     fun contentOf(id: String): ByteArray? = content[id]?.copyOf()
 
     override fun observeMedia(): Flow<List<MediaItem>> = _mediaFlow.asStateFlow()
+
+    override fun observeTrashed(): Flow<List<MediaItem>> = _trashedFlow.asStateFlow()
+
+    override suspend fun restoreFromTrash(items: List<MediaItem>): RestoreResult {
+        if (!capabilities.hasTrash) {
+            return RestoreResult(emptySet(), errorMessage = "Trash isn't available on this device")
+        }
+        if (cancelNextRestore) {
+            cancelNextRestore = false
+            return RestoreResult(emptySet(), cancelled = true)
+        }
+        val ids = items.map { it.id }.toSet()
+        val moving = _trashedFlow.value.filter { it.id in ids }
+        _trashedFlow.update { current -> current.filterNot { it.id in ids } }
+        _mediaFlow.update { (it + moving).sortedByDescending { m -> m.dateTakenMillis } }
+        return RestoreResult(moving.mapTo(HashSet()) { it.id })
+    }
 
     override fun refresh() {
         refreshCount++
@@ -108,10 +129,19 @@ class FakePlatformMediaDataSource(
             return DeleteResult(emptySet(), cancelled = true)
         }
         val ids = items.map { it.id }.toSet()
-        val existing = _mediaFlow.value.map { it.id }.toSet()
-        _mediaFlow.update { current -> current.filterNot { it.id in ids } }
-        ids.forEach { content.remove(it) }
-        return DeleteResult(ids intersect existing)
+        val existing = (_mediaFlow.value.map { it.id } + _trashedFlow.value.map { it.id }).toSet()
+        val targets = ids intersect existing
+        if (mode == DeleteMode.TRASH && capabilities.hasTrash) {
+            // Recoverable: leave the library, keep the bytes, surface in the trash.
+            val moving = _mediaFlow.value.filter { it.id in targets }
+            _mediaFlow.update { current -> current.filterNot { it.id in targets } }
+            _trashedFlow.update { (it + moving).sortedByDescending { m -> m.dateTakenMillis } }
+        } else {
+            _mediaFlow.update { current -> current.filterNot { it.id in targets } }
+            _trashedFlow.update { current -> current.filterNot { it.id in targets } }
+            targets.forEach { content.remove(it) }
+        }
+        return DeleteResult(targets)
     }
 
     override suspend fun openContent(item: MediaItem): ByteSource {
