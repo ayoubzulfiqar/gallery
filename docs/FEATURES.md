@@ -40,7 +40,7 @@ A modern, fast, privacy-focused gallery application built with **Compose Multipl
 * **Native Video Player**: Tap any video to launch your device's default video player (e.g., MX Player, VLC, Photos).
 * **Frosted Glass Chrome**: Top and bottom control bars use translucent frosted-style panels that adapt dynamically to Light and Dark mode.
 * **Options & Tools Menu**:
-  * Set as Wallpaper (Home / Lock screen).
+  * Set as Wallpaper — in-app cropper: pan/zoom to align the exact region, then apply to Home, Lock, or both.
   * Share without metadata (lossless for JPEG/PNG, remuxed for video; temporary copies expire after an hour).
   * Remove metadata from original (JPEG/PNG; asks for system write permission, verifies, and rolls back on failure).
   * Details sheet with real EXIF (camera, ISO, aperture, shutter, focal length, GPS with "Open in Maps"); missing data is never invented.
@@ -61,7 +61,7 @@ A modern, fast, privacy-focused gallery application built with **Compose Multipl
 ---
 
 ### 1.5 Recoverable Trash (Android 11+)
-* Deleted items land in the system trash and remain browsable inside the app (trash button in the Photos header, or "View" on the delete snackbar).
+* Deleted items land in the system trash and remain browsable inside the app (Trash chip beside the media filters, or "View" on the delete snackbar).
 * **Restore** returns items to the gallery with system consent; **Delete** and **Empty trash** are permanent and confirmed.
 * The header shows the soonest auto-delete time (the system keeps trashed items for 30 days).
 
