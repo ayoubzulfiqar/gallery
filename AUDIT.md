@@ -166,7 +166,7 @@ All four confirmed findings were fixed in the same session (§10); the rejected 
 
 **At audit time:** Android personal/sideload use: ship-with-fixes (P1-1 trash gap, P2-1 consent hang, P2-2 strip crash window open). Play Store / iOS public release: no_ship until release signing, CI and the iOS cluster were addressed.
 
-**After the fix pass (§10):** P1-1, all five P2 findings and the code-level P3 items are implemented and regression-tested where host-testable; no open P0/P1/P2 code findings remain. Still open before a public release: P3-14 doc corrections, P3-12 CI + a real release keystore (user-held), and runtime verification on a physical Android device and a Mac/iOS device — the audit's static + host-test evidence does not substitute for those.
+**After the fix pass (§10):** P1-1, all five P2 findings and the code-level P3 items are implemented and regression-tested where host-testable; no open P0/P1/P2 code findings remain. Still open before a public release: a real release keystore (user-held) and runtime verification on a physical Android device and a Mac/iOS device — the audit's static + host-test evidence does not substitute for those. CI was implemented and then removed at the owner's request; the local Gradle gate is the verification path.
 Confidence: high for static findings (full code trace + executed builds/tests); runtime gaps named in §7.
 
 ## 10. Fix implementation ledger (2026-11-21, same session)
@@ -194,7 +194,7 @@ TDD where host-testable (RED observed before GREEN); platform glue verified by c
 | P3-11 GIF metadata | **Implemented** | `GifMetadataStripper` drops comment/plain-text/non-NETSCAPE app extensions, keeps GCE+looping+pixels; wired into share path | 4 tests RED→GREEN (parser bug found via hex trace: missing 0x0B app-header size byte) |
 | P3-13 privacy manifest | **Implemented** | PrivacyInfo.xcprivacy (UserDefaults CA92.1); Xcode 16 synchronized group auto-includes it | static |
 | P3-14 docs/dead code | **Implemented** | sticky-header/blur claims corrected in README/FEATURES; ARCHITECTURE updated (trash, GIF sanitizing, crash journal, iOS Keychain status, 95 tests); color-matrix order comment fixed; dead `highlights`/`shadows`/`BURST` removed; README/FEATURES gained Trash sections | docs-only + compile re-verified |
-| P3-12 CI / signing | **CI implemented** | `.github/workflows/ci.yml`: host tests + debug + release (R8) + iOS klib compile, test-results/APK artifacts. Release keystore still requires the user's key | workflow YAML linted; first run happens on push |
+| P3-12 CI / signing | **CI removed by owner decision** | Workflow was added, then deleted at the user's request — no GitHub Actions; verification stays local (`testAndroidHostTest` + assemble + iOS compile). Release keystore still requires the user's key | removal committed; local gate remains the verification path |
 
 Final gate (after all fixes incl. GIF parser fix and dead-code removal): `:shared:testAndroidHostTest` + `:androidApp:assembleDebug` + `:androidApp:assembleRelease` + `:shared:compileKotlinIosArm64` → BUILD SUCCESSFUL, GRADLE_EXIT=0, **95 tests / 0 failures / 0 errors** (counted from TEST-*.xml), `minifyReleaseWithR8` observed, debug APK 13.5 MB + release APK 1.77 MB present in outputs. Test count: 72 → 95 (23 new).
 
