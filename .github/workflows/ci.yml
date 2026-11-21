@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21 (launcher; the Gradle daemon provisions Azul 21 per gradle-daemon-jvm.properties)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Tests, debug + release builds, iOS type-check
+        run: >-
+          ./gradlew :shared:testAndroidHostTest
+          :androidApp:assembleDebug
+          :androidApp:assembleRelease
+          :shared:compileKotlinIosArm64
+          --console=plain
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: shared/build/test-results/testAndroidHostTest/
+
+      - name: Upload release APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-apk
+          path: androidApp/build/outputs/apk/release/*.apk
