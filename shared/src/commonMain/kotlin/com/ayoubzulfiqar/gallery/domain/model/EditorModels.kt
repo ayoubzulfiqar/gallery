@@ -21,8 +21,6 @@ data class ColorAdjustments(
     val contrast: Float = 1f,        // [0.0f .. 2.0f]
     val saturation: Float = 1f,      // [0.0f .. 2.0f]
     val warmth: Float = 0f,          // [-1.0f .. 1.0f]
-    val highlights: Float = 0f,      // [-1.0f .. 1.0f]
-    val shadows: Float = 0f,         // [-1.0f .. 1.0f]
     val vignette: Float = 0f         // [0.0f .. 1.0f]
 )
 
