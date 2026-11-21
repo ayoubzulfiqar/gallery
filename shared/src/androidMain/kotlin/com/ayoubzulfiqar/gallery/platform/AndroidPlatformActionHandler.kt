@@ -6,13 +6,20 @@ import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ComponentName
 import android.content.Intent
+import android.graphics.Bitmap
 import android.net.Uri
 import android.provider.Settings
 import androidx.core.content.FileProvider
 import com.ayoubzulfiqar.gallery.domain.model.MediaItem
+import com.ayoubzulfiqar.gallery.domain.model.WallpaperCropRequest
+import com.ayoubzulfiqar.gallery.domain.model.WallpaperTarget
 import com.ayoubzulfiqar.gallery.security.MetadataStripper
 import com.ayoubzulfiqar.gallery.security.SanitizationResult
+import com.ayoubzulfiqar.gallery.ui.common.AndroidBitmaps
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
+import kotlin.math.roundToInt
 
 /** Launches system activities on behalf of the UI. Must be bound to the foreground [Activity]. */
 class AndroidPlatformActionHandler(
@@ -101,20 +108,40 @@ class AndroidPlatformActionHandler(
         return ActionResult.Failed("Google Lens isn't installed on this device")
     }
 
-    override fun setAsWallpaper(item: MediaItem): ActionResult {
-        val uri = Uri.parse(item.uri)
-        val cropIntent = runCatching { WallpaperManager.getInstance(activity).getCropAndSetWallpaperIntent(uri) }.getOrNull()
-        if (cropIntent != null) {
-            cropIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            if (tryStart(cropIntent)) return ActionResult.Done()
+    override suspend fun applyWallpaper(item: MediaItem, request: WallpaperCropRequest): ActionResult =
+        withContext(Dispatchers.IO) {
+            try {
+                val resolver = activity.contentResolver
+                // Full-quality decode, EXIF-oriented — the same space the crop preview showed.
+                val oriented = AndroidBitmaps.decodeImage(resolver, Uri.parse(item.uri), maxDimension = 4096)
+                    ?: return@withContext ActionResult.Failed("Couldn't read this image")
+                val sx = oriented.width.toFloat() / request.basisWidth.coerceAtLeast(1)
+                val sy = oriented.height.toFloat() / request.basisHeight.coerceAtLeast(1)
+                val r = request.rect
+                val x = (r.x * sx).roundToInt().coerceIn(0, oriented.width - 1)
+                val y = (r.y * sy).roundToInt().coerceIn(0, oriented.height - 1)
+                val w = (r.width * sx).roundToInt().coerceIn(1, oriented.width - x)
+                val h = (r.height * sy).roundToInt().coerceIn(1, oriented.height - y)
+                val cropped = Bitmap.createBitmap(oriented, x, y, w, h)
+                if (cropped !== oriented) oriented.recycle()
+                val which = when (request.target) {
+                    WallpaperTarget.HOME -> WallpaperManager.FLAG_SYSTEM
+                    WallpaperTarget.LOCK -> WallpaperManager.FLAG_LOCK
+                    WallpaperTarget.BOTH -> WallpaperManager.FLAG_SYSTEM or WallpaperManager.FLAG_LOCK
+                }
+                // Null crop hint: the bitmap IS the aligned region, so nothing can re-crop it
+                // to a default (the OEM cropper's leftmost-slice bug came from a dropped hint).
+                WallpaperManager.getInstance(activity).setBitmap(cropped, null, true, which)
+                cropped.recycle()
+                ActionResult.Done("Wallpaper set")
+            } catch (_: SecurityException) {
+                ActionResult.Failed("Wallpaper permission was denied")
+            } catch (_: OutOfMemoryError) {
+                ActionResult.Failed("This image is too large to set as wallpaper")
+            } catch (e: Exception) {
+                ActionResult.Failed("Couldn't set wallpaper: ${e.message ?: e.javaClass.simpleName}")
+            }
         }
-        val attach = Intent(Intent.ACTION_ATTACH_DATA).apply {
-            setDataAndType(uri, item.mimeType)
-            putExtra("mimeType", item.mimeType)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
-        return launch(Intent.createChooser(attach, "Set as"))
-    }
 
     override fun playVideo(item: MediaItem): ActionResult {
         val intent = Intent(Intent.ACTION_VIEW).apply {
