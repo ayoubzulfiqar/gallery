@@ -4,6 +4,7 @@ import com.ayoubzulfiqar.gallery.data.datasource.DeleteMode
 import com.ayoubzulfiqar.gallery.data.datasource.DeleteResult
 import com.ayoubzulfiqar.gallery.data.datasource.MediaCapabilities
 import com.ayoubzulfiqar.gallery.data.datasource.PlatformMediaDataSource
+import com.ayoubzulfiqar.gallery.data.datasource.RestoreResult
 import com.ayoubzulfiqar.gallery.data.local.LocalMetadataStore
 import com.ayoubzulfiqar.gallery.domain.model.LibraryState
 import com.ayoubzulfiqar.gallery.domain.model.MediaDetails
@@ -79,6 +80,20 @@ class DefaultMediaRepository(
         .distinctUntilChanged()
         .flowOn(computeDispatcher)
         .shareIn(scope, SharingStarted.WhileSubscribed(stopTimeoutMillis = 5_000), replay = 1)
+
+    override val trashed: Flow<List<MediaItem>> = platformSource.observeTrashed()
+        .shareIn(scope, SharingStarted.WhileSubscribed(stopTimeoutMillis = 5_000), replay = 1)
+
+    override suspend fun restoreFromTrash(items: List<MediaItem>): RestoreResult {
+        if (items.isEmpty()) return RestoreResult(emptySet())
+        val result = platformSource.restoreFromTrash(items)
+        if (result.restoredIds.isNotEmpty()) {
+            // Stop hiding them immediately; the refreshed library stream confirms they are back.
+            recentlyDeleted.update { it - result.restoredIds }
+            platformSource.refresh()
+        }
+        return result
+    }
 
     override fun refresh() = platformSource.refresh()
 
