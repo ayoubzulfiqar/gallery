@@ -383,7 +383,13 @@ class DefaultVaultRepository(
     private data class LockoutState(val failedAttempts: Int, val lockedUntilMillis: Long)
 
     private fun loadLockout(): LockoutState {
-        val raw = storage.read(LOCKOUT) ?: return LockoutState(0, 0)
+        val raw = storage.read(LOCKOUT)
+        if (raw == null) {
+            // setUp always writes the lockout right after the header. A missing record while a
+            // vault exists means it was deleted — fail closed instead of granting fresh attempts.
+            return if (storage.exists(HEADER)) LockoutState(config.freeAttempts, clock() + backoffMillis(0))
+            else LockoutState(0, 0)
+        }
         return try {
             val reader = BinaryReader(deviceKeyProtector.unprotect(raw))
             LockoutState(reader.int(), reader.long())
@@ -485,15 +491,16 @@ class DefaultVaultRepository(
     }
 
     private fun recoverOrphan(dek: ByteArray, id: String): VaultItem? {
-        val sniffer = SniffingSink()
-        try {
-            storage.openSource(blobPath(id)).use { streaming.decrypt(dek, blobAad(id), it, sniffer) }
+        // Only the first segment is decrypted for type sniffing; a multi-GB orphan must not
+        // stall unlock. The reported size comes from the authenticated framing, not the head.
+        val sniffed = try {
+            storage.openSource(blobPath(id)).use { streaming.sniff(dek, blobAad(id), it) }
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) {
             return null // Not ours or corrupted beyond use; leave the file untouched for forensics.
         }
-        val (mime, extension) = sniffer.detectType()
+        val (mime, extension) = detectType(sniffed.head)
         return VaultItem(
             id = id,
             originalId = "",
@@ -504,7 +511,7 @@ class DefaultVaultRepository(
             width = 0,
             height = 0,
             orientation = 0,
-            sizeBytes = sniffer.total,
+            sizeBytes = sniffed.plaintextSize,
             durationMs = null,
             bucketName = null,
             relativePath = null,
@@ -513,33 +520,19 @@ class DefaultVaultRepository(
         )
     }
 
-    private class SniffingSink : ByteSink {
-        val head = ByteArray(16)
-        var total = 0L
-
-        override fun write(buffer: ByteArray, offset: Int, length: Int) {
-            if (total < head.size) {
-                val count = minOf(length, head.size - total.toInt())
-                buffer.copyInto(head, total.toInt(), offset, offset + count)
-            }
-            total += length
-        }
-
-        override fun close() {}
-
-        fun detectType(): Pair<String, String> {
-            fun at(i: Int) = head[i].toInt() and 0xFF
-            fun ascii(from: Int, text: String) = text.indices.all { at(from + it) == text[it].code }
-            return when {
-                at(0) == 0xFF && at(1) == 0xD8 && at(2) == 0xFF -> "image/jpeg" to "jpg"
-                at(0) == 0x89 && ascii(1, "PNG") -> "image/png" to "png"
-                ascii(0, "GIF8") -> "image/gif" to "gif"
-                ascii(0, "RIFF") && ascii(8, "WEBP") -> "image/webp" to "webp"
-                ascii(4, "ftyp") && (ascii(8, "heic") || ascii(8, "heix") || ascii(8, "mif1")) -> "image/heic" to "heic"
-                ascii(4, "ftyp") -> "video/mp4" to "mp4"
-                at(0) == 0x1A && at(1) == 0x45 && at(2) == 0xDF && at(3) == 0xA3 -> "video/webm" to "webm"
-                else -> "application/octet-stream" to "bin"
-            }
+    private fun detectType(head: ByteArray): Pair<String, String> {
+        fun at(i: Int) = if (i < head.size) head[i].toInt() and 0xFF else 0
+        fun ascii(from: Int, text: String) = text.indices.all { at(from + it) == text[it].code }
+        return when {
+            at(0) == 0xFF && at(1) == 0xD8 && at(2) == 0xFF -> "image/jpeg" to "jpg"
+            at(0) == 0x89 && ascii(1, "PNG") -> "image/png" to "png"
+            ascii(0, "GIF8") -> "image/gif" to "gif"
+            ascii(0, "RIFF") && ascii(8, "WEBP") -> "image/webp" to "webp"
+            ascii(4, "ftyp") && (ascii(8, "heic") || ascii(8, "heix") || ascii(8, "heim") ||
+                ascii(8, "heis") || ascii(8, "hevc") || ascii(8, "hevx") || ascii(8, "mif1") || ascii(8, "msf1")) -> "image/heic" to "heic"
+            ascii(4, "ftyp") -> "video/mp4" to "mp4"
+            at(0) == 0x1A && at(1) == 0x45 && at(2) == 0xDF && at(3) == 0xA3 -> "video/webm" to "webm"
+            else -> "application/octet-stream" to "bin"
         }
     }
 
@@ -565,6 +558,8 @@ class DefaultVaultRepository(
             private val MAGIC = "GVH1".encodeToByteArray()
             private const val HEADER_VERSION = 1
             private const val KDF_PBKDF2_SHA256 = 1
+            /** Upper bound so a forged header cannot turn unlock into an hours-long KDF DoS. */
+            private const val MAX_KDF_ITERATIONS = 10_000_000
 
             fun decode(bytes: ByteArray): VaultHeader {
                 val reader = BinaryReader(bytes)
@@ -576,7 +571,10 @@ class DefaultVaultRepository(
                 val salt = reader.bytes(64)
                 val nonce = reader.bytes(64)
                 val wrapped = reader.bytes(256)
-                if (iterations < 1 || nonce.size != Aead.NONCE_SIZE || wrapped.size != Aead.KEY_SIZE + Aead.TAG_SIZE) {
+                if (iterations < 1 || iterations > MAX_KDF_ITERATIONS ||
+                    salt.size != SALT_BYTES ||
+                    nonce.size != Aead.NONCE_SIZE || wrapped.size != Aead.KEY_SIZE + Aead.TAG_SIZE
+                ) {
                     throw MalformedDataException("Invalid header parameters")
                 }
                 return VaultHeader(iterations, pinLength, salt, nonce, wrapped)
