@@ -14,6 +14,8 @@ data class MediaCapabilities(
     val canDelete: Boolean = true,
     /** Deleted items go to a recoverable system trash (Android 11+). */
     val deleteMovesToTrash: Boolean = false,
+    /** The platform trash can be browsed and restored from inside the app. */
+    val hasTrash: Boolean = false,
     /** The OS shows its own confirmation for deletions, so the app must not ask twice. */
     val systemConfirmsDeletion: Boolean = false,
     /** New media (vault restores, edited copies) can be written to the library. */
@@ -38,6 +40,12 @@ data class DeleteResult(
     fun isCompleteFor(ids: Collection<String>): Boolean = ids.all { it in deletedIds }
 }
 
+data class RestoreResult(
+    val restoredIds: Set<String>,
+    val cancelled: Boolean = false,
+    val errorMessage: String? = null
+)
+
 data class MediaImportRequest(
     val displayName: String,
     val mimeType: String,
@@ -57,6 +65,12 @@ interface PlatformMediaDataSource {
 
     /** Hot or cold stream of the whole library, newest first. Re-emits whenever the library changes. */
     fun observeMedia(): Flow<List<MediaItem>>
+
+    /** Trashed media, newest first. Empty when [MediaCapabilities.hasTrash] is false. */
+    fun observeTrashed(): Flow<List<MediaItem>>
+
+    /** Restores trashed items to the library, asking for consent where the platform requires it. */
+    suspend fun restoreFromTrash(items: List<MediaItem>): RestoreResult
 
     /** Requests a re-scan (e.g. after permissions changed or the app returned to the foreground). */
     fun refresh()
