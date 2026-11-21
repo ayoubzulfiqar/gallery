@@ -35,8 +35,11 @@ class AndroidEditedImageExporter(
 ) : EditedImageExporter {
 
     override suspend fun export(item: MediaItem, recipe: EditRecipe): ImportResult {
-        val rendered = withContext(Dispatchers.Default) { render(item, recipe) }
-            ?: return ImportResult.Failure("Couldn't open the photo for editing")
+        val rendered = try {
+            withContext(Dispatchers.Default) { render(item, recipe) }
+        } catch (e: OutOfMemoryError) {
+            return ImportResult.Failure("This photo is too large to edit on this device")
+        } ?: return ImportResult.Failure("Couldn't open the photo for editing")
         return try {
             val baseName = item.displayName.substringBeforeLast('.')
             mediaSource.importMedia(
