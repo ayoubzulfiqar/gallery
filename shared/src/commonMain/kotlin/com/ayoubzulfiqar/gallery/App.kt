@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -83,6 +84,8 @@ import com.ayoubzulfiqar.gallery.ui.theme.frostedGlass
 import com.ayoubzulfiqar.gallery.ui.timeline.MediaSelectionHandlers
 import com.ayoubzulfiqar.gallery.ui.timeline.TimelineScreen
 import com.ayoubzulfiqar.gallery.ui.timeline.TimelineViewModel
+import com.ayoubzulfiqar.gallery.ui.trash.TrashScreen
+import com.ayoubzulfiqar.gallery.ui.trash.TrashViewModel
 import com.ayoubzulfiqar.gallery.ui.vault.VaultScreen
 import com.ayoubzulfiqar.gallery.ui.vault.VaultViewModel
 import com.ayoubzulfiqar.gallery.ui.viewer.LightboxViewerScreen
@@ -184,10 +187,17 @@ private fun GalleryShell(
             val deleted = result.deletedIds.size
             when {
                 result.cancelled -> Unit
-                deleted == items.size -> messenger.show(
-                    (if (capabilities.deleteMovesToTrash) "Moved to trash" else "Deleted") +
+                deleted == items.size -> {
+                    val message = (if (capabilities.deleteMovesToTrash) "Moved to trash" else "Deleted") +
                         if (deleted == 1) "" else " ($deleted items)"
-                )
+                    if (capabilities.deleteMovesToTrash) {
+                        // Offer a direct way back: the trash is browsable, so deletion is reversible.
+                        val action = snackbarHostState.showSnackbar(message, actionLabel = "View")
+                        if (action == SnackbarResult.ActionPerformed) navState.navigateTo(GalleryDestination.Trash)
+                    } else {
+                        messenger.show(message)
+                    }
+                }
                 deleted > 0 -> messenger.show("Deleted $deleted of ${items.size}. ${result.errorMessage ?: ""}".trim())
                 else -> messenger.show(result.errorMessage ?: "Couldn't delete")
             }
@@ -225,9 +235,11 @@ private fun GalleryShell(
         onSystemBarsDark(isDark || destination is GalleryDestination.Editor)
     }
     // Keep vault content out of screenshots, screen recordings and the recent-apps preview.
+    // SideEffect runs synchronously with the recomposition that reveals vault content, so the
+    // flag is applied before the next draw (a LaunchedEffect could lag a frame behind).
     val vaultUi by vaultViewModel.uiState.collectAsState()
     val vaultContentVisible = destination == GalleryDestination.Vault && vaultUi.vaultState is com.ayoubzulfiqar.gallery.domain.model.VaultState.Unlocked
-    LaunchedEffect(vaultContentVisible) { onSensitiveContentVisible(vaultContentVisible) }
+    SideEffect { onSensitiveContentVisible(vaultContentVisible) }
 
     val canvas = if (isDark) GalleryColors.DarkCanvas else GalleryColors.LightCanvas
     Box(modifier = Modifier.fillMaxSize().background(canvas)) {
@@ -256,6 +268,8 @@ private fun GalleryShell(
                         handlers = selectionHandlers,
                         themeMode = themeMode,
                         onToggleTheme = container.localStore::cycleThemeMode,
+                        hasTrash = capabilities.hasTrash,
+                        onOpenTrash = { navState.navigateTo(GalleryDestination.Trash) },
                         banner = if (access == MediaAccess.PARTIAL) {
                             { PartialAccessBanner(onManage = container.permissions::request) }
                         } else {
@@ -269,6 +283,11 @@ private fun GalleryShell(
                     )
 
                     GalleryDestination.Vault -> VaultScreen(viewModel = vaultViewModel)
+
+                    GalleryDestination.Trash -> {
+                        val trashViewModel = viewModel { TrashViewModel(container.mediaRepository, container.messenger) }
+                        TrashScreen(viewModel = trashViewModel, onBack = { navState.navigateBack() })
+                    }
 
                     is GalleryDestination.FolderDetail -> {
                         val folderViewModel = viewModel { FolderDetailViewModel(container.mediaRepository, destination.bucketId, destination.folderName) }
