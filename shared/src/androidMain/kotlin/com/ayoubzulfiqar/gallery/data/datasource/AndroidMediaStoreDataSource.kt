@@ -12,6 +12,7 @@ import android.media.MediaMetadataRetriever
 import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
@@ -36,6 +37,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -56,6 +58,7 @@ class AndroidMediaStoreDataSource(
         isDemoLibrary = false,
         canDelete = true,
         deleteMovesToTrash = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R,
+        hasTrash = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R,
         systemConfirmsDeletion = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R,
         canImport = true,
         canReadContent = true
@@ -71,7 +74,13 @@ class AndroidMediaStoreDataSource(
         refreshSignals.tryEmit(Unit)
     }
 
-    override fun observeMedia(): Flow<List<MediaItem>> = channelFlow {
+    override fun observeMedia(): Flow<List<MediaItem>> = observeLibrary(trashed = false)
+
+    override fun observeTrashed(): Flow<List<MediaItem>> =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) observeLibrary(trashed = true)
+        else flowOf(emptyList())
+
+    private fun observeLibrary(trashed: Boolean): Flow<List<MediaItem>> = channelFlow {
         val triggers = Channel<Unit>(Channel.CONFLATED)
         val observer = object : ContentObserver(null) {
             override fun onChange(selfChange: Boolean) {
@@ -89,7 +98,7 @@ class AndroidMediaStoreDataSource(
                 if (access != MediaAccess.FULL && access != MediaAccess.PARTIAL) {
                     send(emptyList())
                 } else {
-                    val items = queryLibrary(onFirstPage = if (first) { page -> send(page) } else null)
+                    val items = queryLibrary(onFirstPage = if (first && !trashed) { page -> send(page) } else null, trashed = trashed)
                     send(items)
                 }
                 first = false
@@ -101,7 +110,10 @@ class AndroidMediaStoreDataSource(
         }
     }.flowOn(Dispatchers.IO)
 
-    private suspend fun queryLibrary(onFirstPage: (suspend (List<MediaItem>) -> Unit)?): List<MediaItem> {
+    private suspend fun queryLibrary(
+        onFirstPage: (suspend (List<MediaItem>) -> Unit)?,
+        trashed: Boolean = false
+    ): List<MediaItem> {
         val projection = buildList {
             add(MediaStore.Files.FileColumns._ID)
             add(MediaStore.Files.FileColumns.DISPLAY_NAME)
@@ -118,6 +130,7 @@ class AndroidMediaStoreDataSource(
             add(COLUMN_BUCKET_ID)
             add(COLUMN_BUCKET_NAME)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) add(MediaStore.MediaColumns.RELATIVE_PATH) else add(COLUMN_DATA)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) add(MediaStore.MediaColumns.DATE_EXPIRES)
         }.toTypedArray()
         val selection = "${MediaStore.Files.FileColumns.MEDIA_TYPE} IN (?, ?)"
         val args = arrayOf(
@@ -128,10 +141,22 @@ class AndroidMediaStoreDataSource(
 
         val items = ArrayList<MediaItem>(1024)
         try {
-            resolver.query(filesUri, projection, selection, args, sortOrder)?.use { cursor ->
-                val columns = Columns(cursor)
-                while (cursor.moveToNext()) {
-                    columns.read(cursor)?.let(items::add)
+            val cursor = if (trashed && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                // MATCH_ONLY restricts the query to the system trash; the default view hides it.
+                val queryArgs = Bundle().apply {
+                    putInt(MediaStore.QUERY_ARG_MATCH_TRASHED, MediaStore.MATCH_ONLY)
+                    putString(ContentResolver.QUERY_ARG_SQL_SELECTION, selection)
+                    putStringArray(ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS, args)
+                    putString(ContentResolver.QUERY_ARG_SQL_SORT_ORDER, sortOrder)
+                }
+                resolver.query(filesUri, projection, queryArgs, null)
+            } else {
+                resolver.query(filesUri, projection, selection, args, sortOrder)
+            }
+            cursor?.use { c ->
+                val columns = Columns(c)
+                while (c.moveToNext()) {
+                    columns.read(c)?.let(items::add)
                     if (onFirstPage != null && items.size == FIRST_PAGE_SIZE) onFirstPage(items.toList())
                 }
             }
@@ -162,6 +187,7 @@ class AndroidMediaStoreDataSource(
         private val bucketName = cursor.getColumnIndex(COLUMN_BUCKET_NAME)
         private val relativePath = cursor.getColumnIndex(MediaStore.MediaColumns.RELATIVE_PATH)
         private val data = cursor.getColumnIndex(COLUMN_DATA)
+        private val expires = cursor.getColumnIndex(MediaStore.MediaColumns.DATE_EXPIRES)
 
         fun read(c: Cursor): MediaItem? {
             val rowId = c.getLong(id)
@@ -190,7 +216,9 @@ class AndroidMediaStoreDataSource(
                 orientation = (c.intOrNull(orientation) ?: 0).let { ((it % 360) + 360) % 360 },
                 bucketId = c.stringOrNull(bucketId),
                 bucketName = c.stringOrNull(bucketName),
-                relativePath = path
+                relativePath = path,
+                // MediaStore date columns are seconds; expiry is only set for trashed items.
+                trashedExpiresMillis = c.longOrNull(expires)?.takeIf { it > 0 }?.let { it * 1000L }
             )
         }
     }
@@ -326,6 +354,27 @@ class AndroidMediaStoreDataSource(
     private fun verifiedDeletion(items: List<MediaItem>): DeleteResult {
         val stillPresent = existingIds(items.map { it.id })
         return DeleteResult(items.map { it.id }.filterTo(HashSet()) { it !in stillPresent })
+    }
+
+    override suspend fun restoreFromTrash(items: List<MediaItem>): RestoreResult = withContext(Dispatchers.IO) {
+        if (items.isEmpty()) return@withContext RestoreResult(emptySet())
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            return@withContext RestoreResult(emptySet(), errorMessage = "Trash requires Android 11 or newer")
+        }
+        try {
+            // Un-trash with the same system consent UI as trashing; the OS keeps the bytes intact.
+            val request = MediaStore.createTrashRequest(resolver, items.map { Uri.parse(it.uri) }, false)
+            if (!consentBroker.requestConsent(request.intentSender)) {
+                return@withContext RestoreResult(emptySet(), cancelled = true)
+            }
+            // Restored items show up in the default (non-trashed) view again.
+            RestoreResult(existingIds(items.map { it.id }))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.e(TAG, "Restore from trash failed", e)
+            RestoreResult(existingIds(items.map { it.id }), errorMessage = e.message ?: "Restore failed")
+        }
     }
 
     private fun existingIds(ids: List<String>): Set<String> {
