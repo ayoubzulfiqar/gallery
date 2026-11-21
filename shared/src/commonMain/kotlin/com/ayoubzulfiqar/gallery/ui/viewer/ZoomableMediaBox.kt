@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -63,7 +64,9 @@ fun ZoomableMediaBox(
     var containerSize by remember { mutableStateOf(IntSize.Zero) }
     val dismissOffset = remember { Animatable(0f) }
 
-    val isZoomed = scale > ZOOMED_THRESHOLD
+    // derivedStateOf: composition only recomposes when the zoomed flag flips, not on every
+    // pinch event / animation frame (the render itself already runs in the draw phase).
+    val isZoomed by remember { derivedStateOf { scale > ZOOMED_THRESHOLD } }
     LaunchedEffect(isZoomed) { onZoomChanged(isZoomed) }
 
     fun clampOffset(raw: Offset, forScale: Float): Offset {
