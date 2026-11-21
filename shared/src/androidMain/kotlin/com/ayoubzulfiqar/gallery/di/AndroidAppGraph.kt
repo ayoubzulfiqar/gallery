@@ -51,5 +51,13 @@ class AndroidAppGraph(application: Application) {
     fun attach(activity: ComponentActivity) {
         consentBroker.attach(activity)
         permissionController.attach(activity)
+        if (recoveryStarted.compareAndSet(false, true)) {
+            // Finish any in-place strip that process death interrupted while the original was open.
+            appScope.launch(Dispatchers.IO) {
+                metadataStripper.recoverInterruptedStrips { message -> container.messenger.show(message) }
+            }
+        }
     }
+
+    private val recoveryStarted = java.util.concurrent.atomic.AtomicBoolean(false)
 }
