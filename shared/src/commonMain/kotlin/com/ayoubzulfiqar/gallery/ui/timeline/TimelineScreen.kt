@@ -38,6 +38,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -90,16 +92,19 @@ fun TimelineScreen(
                 density = density,
                 themeMode = themeMode,
                 onDensityChange = viewModel::setDensity,
-                onToggleTheme = onToggleTheme,
-                hasTrash = hasTrash,
-                onOpenTrash = onOpenTrash
+                onToggleTheme = onToggleTheme
             )
             banner?.invoke()
             ChoiceChipRow(
                 options = MediaFilter.entries,
                 selected = filter,
                 label = { it.label },
-                onSelect = viewModel::setFilter
+                onSelect = viewModel::setFilter,
+                trailing = if (hasTrash) {
+                    { TrashChip(onOpenTrash) }
+                } else {
+                    null
+                }
             )
 
             val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
@@ -178,15 +183,40 @@ fun TimelineScreen(
     }
 }
 
+/** Action chip alongside the media filters: opens the system trash (not a filter). */
+@Composable
+private fun TrashChip(onOpenTrash: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.08f))
+            .clickable(role = Role.Button, onClick = onOpenTrash)
+            .semantics { contentDescription = "Open trash" }
+            .padding(horizontal = 14.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp)
+    ) {
+        Icon(
+            imageVector = GalleryIcons.Trash,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+            modifier = Modifier.size(13.dp)
+        )
+        Text(
+            text = "Trash",
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+            fontSize = 12.sp
+        )
+    }
+}
+
 @Composable
 private fun TimelineHeader(
     totalCount: Int,
     density: TimelineDensity,
     themeMode: ThemeMode,
     onDensityChange: (TimelineDensity) -> Unit,
-    onToggleTheme: () -> Unit,
-    hasTrash: Boolean = false,
-    onOpenTrash: () -> Unit = {}
+    onToggleTheme: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -211,23 +241,6 @@ private fun TimelineHeader(
                     text = if (totalCount == 1) "1 item" else "$totalCount items",
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f)
-                )
-            }
-        }
-
-        if (hasTrash) {
-            IconButton(
-                onClick = onOpenTrash,
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.06f))
-            ) {
-                Icon(
-                    imageVector = GalleryIcons.Trash,
-                    contentDescription = "Open trash",
-                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f),
-                    modifier = Modifier.size(19.dp)
                 )
             }
         }
