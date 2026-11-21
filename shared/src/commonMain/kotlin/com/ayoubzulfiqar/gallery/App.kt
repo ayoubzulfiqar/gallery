@@ -86,6 +86,7 @@ import com.ayoubzulfiqar.gallery.ui.timeline.TimelineScreen
 import com.ayoubzulfiqar.gallery.ui.timeline.TimelineViewModel
 import com.ayoubzulfiqar.gallery.ui.trash.TrashScreen
 import com.ayoubzulfiqar.gallery.ui.trash.TrashViewModel
+import com.ayoubzulfiqar.gallery.ui.wallpaper.WallpaperCropScreen
 import com.ayoubzulfiqar.gallery.ui.vault.VaultScreen
 import com.ayoubzulfiqar.gallery.ui.vault.VaultViewModel
 import com.ayoubzulfiqar.gallery.ui.viewer.LightboxViewerScreen
@@ -319,7 +320,11 @@ private fun GalleryShell(
                                 onStripInPlace = if (stripper != null) ({ item -> pendingStrip = item }) else null,
                                 supportsInPlaceStrip = { item -> stripper?.supportsInPlace(item) == true },
                                 onLens = { report(actions.launchGoogleLens(it)) },
-                                onWallpaper = { report(actions.setAsWallpaper(it)) },
+                                onWallpaper = if (!capabilities.isDemoLibrary) {
+                                    { item -> navState.navigateTo(GalleryDestination.WallpaperCrop(item.id)) }
+                                } else {
+                                    null
+                                },
                                 onDelete = if (capabilities.canDelete) ({ item -> requestDelete(listOf(item)) }) else null,
                                 onMoveToVault = selectionHandlers.onMoveToVault?.let { move -> { item -> move(listOf(item)) } },
                                 onOpenMap = { lat, lon -> report(actions.openMap(lat, lon, "Photo location")) }
@@ -328,6 +333,28 @@ private fun GalleryShell(
                     }
 
                     is GalleryDestination.Editor -> EditorRoute(container, destination.mediaId, onClose = { navState.navigateBack() })
+
+                    is GalleryDestination.WallpaperCrop -> {
+                        val library by container.mediaRepository.library.collectAsState(LibraryState())
+                        val item = library.items.firstOrNull { it.id == destination.mediaId }
+                        if (item != null) {
+                            var applying by remember { mutableStateOf(false) }
+                            WallpaperCropScreen(
+                                item = item,
+                                applying = applying,
+                                onApply = { request ->
+                                    applying = true
+                                    appScope.launch {
+                                        val result = actions.applyWallpaper(item, request)
+                                        applying = false
+                                        report(result)
+                                        if (result is ActionResult.Done) navState.navigateBack()
+                                    }
+                                },
+                                onBack = { navState.navigateBack() }
+                            )
+                        }
+                    }
                 }
             }
         }
