@@ -107,8 +107,10 @@ The object graph is process-scoped (`AppContainer`, created by `AndroidAppGraph`
 
 The UI never shows an action the platform cannot perform: features are gated by `MediaCapabilities` and nullable services (`metadataStripper`, `imageExporter`).
 
+Wallpaper is set through an in-app cropper (`WallpaperCropScreen` + `WallpaperCropMath`): the user aligns a screen-aspect frame over the image (pan/zoom, clamped), and the platform decodes the EXIF-oriented source and applies exactly that region with `WallpaperManager.setBitmap` (null crop hint). This deliberately bypasses the system crop-and-set intent — OEM croppers on some devices discard the aligned position for wide images and apply the leftmost slice. The crop math is pure and regression-tested (center default, pan clamping, zoom, bounds safety).
+
 ---
 
 ## 7. Testing
 
-`./gradlew :shared:testAndroidHostTest` runs 95 tests: crypto vectors and JCA cross-checks, streaming AEAD tamper cases and first-segment sniffing, vault lifecycle/lockout/recovery/hardening, the metadata strippers (JPEG/PNG/GIF), transfer rollback, trash browse/restore, repository behaviour, the nav back stack and ViewModel clearing, viewer re-anchoring, timeline selection, vault PIN flows and editor undo/crop/save-failure math. `./gradlew :shared:compileKotlinIosSimulatorArm64` type-checks the iOS sources (it works on Linux hosts).
+`./gradlew :shared:testAndroidHostTest` runs 102 tests: crypto vectors and JCA cross-checks, streaming AEAD tamper cases and first-segment sniffing, vault lifecycle/lockout/recovery/hardening, the metadata strippers (JPEG/PNG/GIF), transfer rollback, trash browse/restore, wallpaper crop-window math, repository behaviour, the nav back stack and ViewModel clearing, viewer re-anchoring, timeline selection, vault PIN flows and editor undo/crop/save-failure math. `./gradlew :shared:compileKotlinIosSimulatorArm64` type-checks the iOS sources (it works on Linux hosts).
