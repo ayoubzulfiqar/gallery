@@ -2,6 +2,7 @@ package com.ayoubzulfiqar.gallery.testutil
 
 import com.ayoubzulfiqar.gallery.core.crypto.PureAesGcm
 import com.ayoubzulfiqar.gallery.data.datasource.FakePlatformMediaDataSource
+import com.ayoubzulfiqar.gallery.data.datasource.MediaCapabilities
 import com.ayoubzulfiqar.gallery.data.local.InMemoryKeyValueStore
 import com.ayoubzulfiqar.gallery.data.local.LocalMetadataStore
 import com.ayoubzulfiqar.gallery.data.repository.DefaultMediaRepository
@@ -69,9 +70,13 @@ fun runViewModelTest(block: suspend TestScope.(ViewModelTracker) -> Unit) = runT
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class TestGraph(scope: TestScope, items: List<MediaItem>) {
+class TestGraph(
+    scope: TestScope,
+    items: List<MediaItem>,
+    capabilities: MediaCapabilities = MediaCapabilities(isDemoLibrary = true)
+) {
     val dispatcher = UnconfinedTestDispatcher(scope.testScheduler)
-    val source = FakePlatformMediaDataSource().apply { setItems(items) }
+    val source = FakePlatformMediaDataSource(capabilities).apply { setItems(items) }
     val kv = InMemoryKeyValueStore()
     val store = LocalMetadataStore(kv)
     val repository = DefaultMediaRepository(source, store, scope.backgroundScope, dispatcher)
