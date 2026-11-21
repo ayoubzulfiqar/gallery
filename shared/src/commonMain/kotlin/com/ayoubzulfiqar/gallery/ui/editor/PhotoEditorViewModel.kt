@@ -177,7 +177,9 @@ class PhotoEditorViewModel(
                 target.export(mediaItem, recipe)
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
+                // Throwable, not Exception: a huge render can raise OutOfMemoryError, and the
+                // user deserves an error message rather than a process crash.
                 ImportResult.Failure(e.message ?: "Could not save the edited photo", e)
             }
             _uiState.update { it.copy(isSaving = false) }
