@@ -87,4 +87,26 @@ class StreamingAeadTest {
         }
         assertFailsWith<AeadException> { decrypt(cipher.copyOf(10), streaming) }
     }
+
+    @Test
+    fun sniffReadsOnlyTheFirstSegmentButReportsTheFullPlaintextSize() {
+        val streaming = StreamingAead(PureAesGcm(), segmentSize = 32)
+        for (size in listOf(0, 1, 31, 32, 33, 32 * 3 + 17)) {
+            val plain = Random(size).nextBytes(size)
+            val cipher = encrypt(plain, streaming)
+            val result = streaming.sniff(key, aad, ByteArraySource(cipher))
+            assertEquals(size.toLong(), result.plaintextSize, "size=$size")
+            val expectedHead = plain.copyOf(minOf(16, size))
+            assertContentEquals(expectedHead, result.head.copyOf(expectedHead.size), "size=$size")
+        }
+    }
+
+    @Test
+    fun sniffStillAuthenticatesTheFirstSegment() {
+        val streaming = StreamingAead(PureAesGcm(), segmentSize = 32)
+        val cipher = encrypt(Random(11).nextBytes(100), streaming)
+        val corrupted = cipher.copyOf()
+        corrupted[StreamingAead.HEADER_SIZE + 5] = (corrupted[StreamingAead.HEADER_SIZE + 5].toInt() xor 0x01).toByte()
+        assertFailsWith<AeadException> { streaming.sniff(key, aad, ByteArraySource(corrupted)) }
+    }
 }
