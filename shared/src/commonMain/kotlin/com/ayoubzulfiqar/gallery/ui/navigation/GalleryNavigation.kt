@@ -10,6 +10,7 @@ sealed interface GalleryDestination {
     data object Timeline : GalleryDestination
     data object Albums : GalleryDestination
     data object Vault : GalleryDestination
+    data object Trash : GalleryDestination
     data class Viewer(val mediaId: String, val scope: MediaScope = MediaScope.Library()) : GalleryDestination
     data class Editor(val mediaId: String) : GalleryDestination
     data class FolderDetail(val bucketId: String, val folderName: String) : GalleryDestination
