@@ -2,7 +2,11 @@ package com.ayoubzulfiqar.gallery.core.crypto
 
 import com.ayoubzulfiqar.gallery.core.io.ByteSink
 import com.ayoubzulfiqar.gallery.core.io.ByteSource
+import com.ayoubzulfiqar.gallery.core.io.CountingSource
 import com.ayoubzulfiqar.gallery.core.io.readFully
+
+/** First plaintext bytes of a vault blob plus its full decrypted size (see [StreamingAead.sniff]). */
+class SniffResult(val head: ByteArray, val plaintextSize: Long)
 
 /**
  * Segmented AES-GCM for files of unbounded size in constant memory.
@@ -70,14 +74,7 @@ class StreamingAead(
     fun decrypt(masterKey: ByteArray, associatedData: ByteArray, source: ByteSource, sink: ByteSink): Long {
         val header = ByteArray(HEADER_SIZE)
         if (source.readFully(header) != HEADER_SIZE) throw AeadException("Encrypted file header is truncated")
-        if (header[0] != 'G'.code.toByte() || header[1] != 'V'.code.toByte() ||
-            header[2] != 'S'.code.toByte() || header[3] != '1'.code.toByte()
-        ) {
-            throw AeadException("Not a vault stream (bad magic)")
-        }
-        if (header[4].toInt() != VERSION) throw AeadException("Unsupported vault stream version ${header[4]}")
-        val storedSegmentSize = AesEngine.readInt(header, 5)
-        if (storedSegmentSize !in MIN_SEGMENT_SIZE..MAX_SEGMENT_SIZE) throw AeadException("Corrupted segment size")
+        val storedSegmentSize = validatedSegmentSize(header)
         val salt = header.copyOfRange(9, 9 + SALT_SIZE)
         val noncePrefix = header.copyOfRange(9 + SALT_SIZE, HEADER_SIZE)
         val fileKey = deriveFileKey(masterKey, salt, associatedData)
@@ -110,6 +107,57 @@ class StreamingAead(
         } finally {
             fileKey.fill(0)
         }
+    }
+
+    /**
+     * Decrypts only the first segment (enough to sniff a file type) and reports the full plaintext
+     * size, counting the remaining ciphertext without decrypting it. Used to adopt orphaned blobs
+     * cheaply; the first segment is still fully authenticated.
+     */
+    fun sniff(masterKey: ByteArray, associatedData: ByteArray, source: ByteSource, headBytes: Int = 16): SniffResult {
+        require(headBytes >= 0) { "headBytes must be >= 0" }
+        val counting = CountingSource(source)
+        val header = ByteArray(HEADER_SIZE)
+        if (counting.readFully(header) != HEADER_SIZE) throw AeadException("Encrypted file header is truncated")
+        val storedSegmentSize = validatedSegmentSize(header)
+        val salt = header.copyOfRange(9, 9 + SALT_SIZE)
+        val noncePrefix = header.copyOfRange(9 + SALT_SIZE, HEADER_SIZE)
+        val fileKey = deriveFileKey(masterKey, salt, associatedData)
+        try {
+            val encryptedSegmentSize = storedSegmentSize + Aead.TAG_SIZE
+            val first = ByteArray(encryptedSegmentSize)
+            val firstLength = counting.readFully(first, 0, encryptedSegmentSize)
+            if (firstLength < Aead.TAG_SIZE) throw AeadException("Encrypted file is truncated")
+            val next = ByteArray(encryptedSegmentSize)
+            val nextLength = counting.readFully(next, 0, encryptedSegmentSize)
+            val isLast = nextLength == 0
+            if (!isLast && nextLength < Aead.TAG_SIZE) throw AeadException("Encrypted file is truncated")
+            val chunk = if (firstLength == encryptedSegmentSize) first else first.copyOf(firstLength)
+            val plain = aead.open(fileKey, nonce(noncePrefix, 0, isLast), chunk, header)
+            val drain = ByteArray(64 * 1024)
+            while (counting.read(drain, 0, drain.size) >= 0) { // count only, no crypto
+            }
+            val body = counting.bytesRead - HEADER_SIZE
+            val fullSegments = body / encryptedSegmentSize
+            val remainder = body % encryptedSegmentSize
+            if (remainder in 1 until Aead.TAG_SIZE) throw AeadException("Corrupted segment framing")
+            val plaintextSize = fullSegments * storedSegmentSize + if (remainder > 0) remainder - Aead.TAG_SIZE else 0
+            return SniffResult(plain.copyOf(minOf(headBytes, plain.size)), plaintextSize)
+        } finally {
+            fileKey.fill(0)
+        }
+    }
+
+    private fun validatedSegmentSize(header: ByteArray): Int {
+        if (header[0] != 'G'.code.toByte() || header[1] != 'V'.code.toByte() ||
+            header[2] != 'S'.code.toByte() || header[3] != '1'.code.toByte()
+        ) {
+            throw AeadException("Not a vault stream (bad magic)")
+        }
+        if (header[4].toInt() != VERSION) throw AeadException("Unsupported vault stream version ${header[4]}")
+        val storedSegmentSize = AesEngine.readInt(header, 5)
+        if (storedSegmentSize !in MIN_SEGMENT_SIZE..MAX_SEGMENT_SIZE) throw AeadException("Corrupted segment size")
+        return storedSegmentSize
     }
 
     private fun deriveFileKey(masterKey: ByteArray, salt: ByteArray, associatedData: ByteArray): ByteArray {
