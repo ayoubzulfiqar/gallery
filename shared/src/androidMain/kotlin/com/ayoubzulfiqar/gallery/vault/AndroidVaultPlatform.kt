@@ -30,7 +30,12 @@ class FileVaultStorage(private val root: File) : VaultStorage {
 
     private fun file(path: String): File {
         val resolved = File(root, path).canonicalFile
-        require(resolved.path.startsWith(root.canonicalPath)) { "Path escapes the vault directory" }
+        val rootPath = root.canonicalPath
+        // Component-aware containment: a plain string prefix would also match siblings
+        // like "vault-evil" next to "vault".
+        require(resolved.path == rootPath || resolved.path.startsWith(rootPath + File.separator)) {
+            "Path escapes the vault directory"
+        }
         return resolved
     }
 
