@@ -7,7 +7,7 @@ A high-performance, privacy-first, beautiful media gallery built with **Compose 
 ## ✨ Key Features
 
 ### 📅 Gallery Go Month Grouping & Top Quick Folders
-* **Chronological Month Sections**: Media is grouped by month ("November 2026", "October 2026") with sticky headers and media counts.
+* **Chronological Month Sections**: Media is grouped by month ("November 2026", "October 2026") with section headers and media counts.
 * **Top Quick Folders Carousel**: Horizontal carousel above the timeline for rapid access to active folders (Camera, Screenshots, WhatsApp, Downloads) with modern **12.dp border radius**.
 * **Filter Chips**: Filter the entire timeline by **All**, **Photos**, **Videos**, or **Favorites** with a single tap.
 * **Interactive Pinch-to-Density Gestures**: Pinch in or out to switch between **Years**, **Months** (Default), **Days**, and **Masonry** grid densities.
@@ -23,7 +23,7 @@ A high-performance, privacy-first, beautiful media gallery built with **Compose 
 * **Centroid-Based Pinch-to-Zoom**: Two-finger pinch zooms precisely around the touch focal point (`ZoomableMediaBox`). Supports single-finger panning while zoomed in, and automatically delegates to horizontal paging when fully zoomed out.
 * **Direct Google Lens Launch**: Tapping **Lens** directly opens Google Search by Image (`com.google.android.apps.search.lens.LensShareEntryPointActivity`) without system share dialogs.
 * **Native Video Playback**: Automatically launches videos using your installed default video player (e.g., MX Player, VLC, Samsung Video, or Google Photos).
-* **Adaptive Frosted Glass**: Dynamic translucent blurs that automatically adapt between Light Mode and Dark Mode.
+* **Adaptive Frosted Panels**: Translucent, tinted control surfaces that automatically adapt between Light Mode and Dark Mode.
 * **Options & Tools Bottom Sheet**:
   * Set as Wallpaper (Home / Lock screen).
   * Share without metadata (lossless for JPEG/PNG, remuxed for video; location and camera details removed).
@@ -32,11 +32,16 @@ A high-performance, privacy-first, beautiful media gallery built with **Compose 
   * **Move to Encrypted Vault** (Encrypts with AES-256-GCM).
 
 ### 🔒 AES-256-GCM Encrypted Vault
-* **Envelope Encryption**: Every item is encrypted with streaming AES-256-GCM under a random data key; the key is wrapped by your PIN (PBKDF2-HMAC-SHA256) and sealed by a hardware-backed Android Keystore key, so vault files are useless off-device.
+* **Envelope Encryption**: Every item is encrypted with streaming AES-256-GCM under a random data key; the key is wrapped by your PIN (PBKDF2-HMAC-SHA256) and sealed by a device-bound key — Android Keystore on Android, a non-migratable passcode-gated Keychain key on iOS — so vault files are useless off-device on both platforms.
 * **Adaptive Light & Dark UI**: Beautiful keypad with custom circular keys, glowing lock icon, and clear PIN indicator dots in both Light and Dark themes.
 * **PIN Protection**: You create a 4–8 digit PIN on first use (weak sequences are rejected). Wrong attempts trigger a persistent, escalating lockout. The vault locks automatically when the app goes to the background, and screenshots are blocked while it is open.
 * **Safe Transfers**: Items are encrypted first and the original is deleted only after you approve the system prompt. If you decline, the vault copy is rolled back, so nothing is lost or duplicated.
 * **Inspect & Restore**: Preview photos in memory only, permanently delete items (with confirmation), or restore them byte-for-byte to their original folder.
+
+### 🗑️ Recoverable Trash (Android 11+)
+* **Nothing is a one-way door**: Deleted items go to the system trash and stay browsable in-app via the trash button in the Photos header or the "View" action on the delete snackbar.
+* **Restore or purge**: Bring items back with one tap (system consent), delete them permanently, or empty the trash — each behind a confirmation.
+* **Expiry visibility**: The trash header shows when the system will auto-delete the oldest item (30-day retention).
 
 ### 🔙 Native System Back Navigation
 * Integrated with Android's system back gesture and hardware back button via multiplatform `GalleryBackHandler`.
@@ -78,6 +83,7 @@ Gallery/
 │   │       │   ├── navigation/  # GalleryNavState, GalleryDestination
 │   │       │   ├── theme/       # GalleryTheme, FrostedGlass, GalleryIcons
 │   │       │   ├── timeline/    # TimelineScreen, TimelineViewModel, MediaThumbnailItem
+│   │       │   ├── trash/       # TrashScreen, TrashViewModel (system trash browse/restore)
 │   │       │   ├── vault/       # VaultScreen, VaultViewModel
 │   │       │   └── viewer/      # LightboxViewerScreen, ZoomableMediaBox, ViewerMoreSheet
 │   │       ├── core/            # crypto (AES-GCM, streaming AEAD, KDFs), io
