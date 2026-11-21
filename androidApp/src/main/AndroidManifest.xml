@@ -17,6 +17,8 @@
         tools:ignore="ScopedStorage" />
     <!-- Unredacted GPS for the info sheet and to keep location inside vaulted originals. -->
     <uses-permission android:name="android.permission.ACCESS_MEDIA_LOCATION" />
+    <!-- In-app wallpaper cropper applies the aligned region via WallpaperManager.setBitmap. -->
+    <uses-permission android:name="android.permission.SET_WALLPAPER" />
 
     <!-- Package visibility (Android 11+) for the apps we hand media to. -->
     <queries>
@@ -29,10 +31,6 @@
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="geo" />
-        </intent>
-        <intent>
-            <action android:name="android.intent.action.ATTACH_DATA" />
-            <data android:mimeType="image/*" />
         </intent>
     </queries>
 
