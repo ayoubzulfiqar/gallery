@@ -13,8 +13,11 @@ object ColorMatrixHelper {
 
     fun buildColorMatrix(adjustments: ColorAdjustments): FloatArray {
         var current = identityMatrix()
+        // multiply(current, next) post-applies `next`, so the effective per-pixel order is the
+        // reverse of the construction order below: warmth first, then saturation, then
+        // contrast/brightness. Preview and export share this function, so they always agree.
 
-        // 1. Contrast & Brightness
+        // 1. Contrast & Brightness (applied last)
         if (adjustments.contrast != 1f || adjustments.brightness != 0f) {
             val c = adjustments.contrast
             val b = adjustments.brightness * 255f
