@@ -5,6 +5,7 @@ import com.ayoubzulfiqar.gallery.core.io.ByteArraySource
 import com.ayoubzulfiqar.gallery.core.io.ByteSink
 import com.ayoubzulfiqar.gallery.core.io.ByteSource
 import com.ayoubzulfiqar.gallery.data.local.KeyValueStore
+import com.ayoubzulfiqar.gallery.vault.KeychainDeviceKeyProtector
 import com.ayoubzulfiqar.gallery.vault.storage.VaultStorage
 import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.ExperimentalForeignApi
@@ -17,6 +18,8 @@ import platform.Foundation.NSDataWritingFileProtectionComplete
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSSearchPathForDirectoriesInDomains
 import platform.Foundation.NSUserDefaults
+import platform.Foundation.NSURL
+import platform.Foundation.NSURLIsExcludedFromBackupKey
 import platform.Foundation.NSUserDomainMask
 import platform.Foundation.create
 import platform.Foundation.dataWithContentsOfFile
@@ -25,20 +28,27 @@ import platform.posix.memcpy
 
 /**
  * iOS object graph. The photo library is not yet integrated with PhotoKit, so the app runs on the
- * built-in demo library; preferences and the vault are real and persistent.
+ * built-in demo library; preferences and the vault are real and persistent. The vault header is
+ * sealed by a non-migratable Keychain key, so vault files are useless off-device.
  */
+@OptIn(ExperimentalForeignApi::class)
 object IosAppGraph {
     val container: AppContainer by lazy {
         AppContainer.demo(
             keyValueStore = UserDefaultsKeyValueStore(),
-            vaultStorage = ProtectedFileVaultStorage(vaultDirectory())
+            vaultStorage = ProtectedFileVaultStorage(vaultDirectory()),
+            deviceKeyProtector = KeychainDeviceKeyProtector()
         )
     }
 
     private fun vaultDirectory(): String {
         @Suppress("UNCHECKED_CAST")
         val base = (NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, true) as List<String>).first()
-        return "$base/vault"
+        val dir = "$base/vault"
+        NSFileManager.defaultManager.createDirectoryAtPath(dir, withIntermediateDirectories = true, attributes = null, error = null)
+        // Application Support is backed up by default; the vault must never leave the device.
+        NSURL.fileURLWithPath(dir).setResourceValue(true, forKey = NSURLIsExcludedFromBackupKey, error = null)
+        return dir
     }
 }
 
