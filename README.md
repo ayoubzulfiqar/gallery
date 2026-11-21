@@ -25,7 +25,7 @@ A high-performance, privacy-first, beautiful media gallery built with **Compose 
 * **Native Video Playback**: Automatically launches videos using your installed default video player (e.g., MX Player, VLC, Samsung Video, or Google Photos).
 * **Adaptive Frosted Panels**: Translucent, tinted control surfaces that automatically adapt between Light Mode and Dark Mode.
 * **Options & Tools Bottom Sheet**:
-  * Set as Wallpaper (Home / Lock screen).
+  * Set as Wallpaper — in-app cropper: pan/zoom to align the exact region, then apply to Home, Lock, or both.
   * Share without metadata (lossless for JPEG/PNG, remuxed for video; location and camera details removed).
   * Remove metadata from original (JPEG/PNG, with system write consent and automatic rollback).
   * Technical EXIF Inspector (ISO, aperture, shutter speed, focal length, location).
@@ -39,7 +39,7 @@ A high-performance, privacy-first, beautiful media gallery built with **Compose 
 * **Inspect & Restore**: Preview photos in memory only, permanently delete items (with confirmation), or restore them byte-for-byte to their original folder.
 
 ### 🗑️ Recoverable Trash (Android 11+)
-* **Nothing is a one-way door**: Deleted items go to the system trash and stay browsable in-app via the trash button in the Photos header or the "View" action on the delete snackbar.
+* **Nothing is a one-way door**: Deleted items go to the system trash and stay browsable in-app via the Trash chip next to the All / Photos / Videos / Favorites filters, or the "View" action on the delete snackbar.
 * **Restore or purge**: Bring items back with one tap (system consent), delete them permanently, or empty the trash — each behind a confirmation.
 * **Expiry visibility**: The trash header shows when the system will auto-delete the oldest item (30-day retention).
 
