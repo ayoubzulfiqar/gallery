@@ -57,7 +57,7 @@ The object graph is process-scoped (`AppContainer`, created by `AndroidAppGraph`
 * A `ContentObserver` posts to a conflated channel, and queries are debounced by 400 ms. The first 600 rows are emitted early for a fast first paint, then the full library (no 5,000-item cap).
 * Ordering is a domain rule (`MediaScope.arrange`): the main **All** timeline lists photos first and videos after them, and both the grid and the viewer use it, so paging always matches the grid. The timeline groups the photo and video partitions concurrently on the compute pool, and `mapLatest` cancels stale grouping when a newer library snapshot arrives. The grouper caches the current day/month/year instant range, so it only converts dates when an item crosses a period boundary.
 * `DefaultMediaRepository` owns the only subscription (`shareIn`, `WhileSubscribed(5s)`), applies favorites and tags, hides items during vault transfers, and keeps deleted items hidden until MediaStore confirms they are gone.
-* Deletion: Android 11+ uses `createTrashRequest` (normal delete, recoverable) or `createDeleteRequest` (vault moves, so no plaintext copy stays in the trash) through `MediaStoreConsentBroker`. Android 10 uses per-item `RecoverableSecurityException` consent; Android 9 and below need `WRITE_EXTERNAL_STORAGE`. Results report exactly which IDs were deleted.
+* Deletion: Android 11+ uses `createTrashRequest` (normal delete, recoverable) or `createDeleteRequest` (vault moves, so no plaintext copy stays in the trash) through `MediaStoreConsentBroker`. Android 10 uses per-item `RecoverableSecurityException` consent; Android 9 and below need `WRITE_EXTERNAL_STORAGE`. Results report exactly which IDs were deleted. The system trash is browsable in-app (`TrashScreen`, `QUERY_ARG_MATCH_TRASHED`): items can be restored via `createTrashRequest(false)` or permanently deleted, with the per-item `DATE_EXPIRES` shown.
 * Imports (vault restore, edited copies) insert with `IS_PENDING=1`, stream the bytes, and publish only on success; failures delete the pending row.
 
 ---
@@ -90,8 +90,8 @@ The object graph is process-scoped (`AppContainer`, created by `AndroidAppGraph`
 
 ## 5. Privacy tools
 
-* **Share without metadata:** JPEG and PNG are stripped losslessly (APPn/COM/XMP/IPTC/MPF/trailers, and tEXt/iTXt/eXIf/tIME), keeping ICC profiles and a minimal EXIF orientation tag so pictures stay upright. HEIC/WebP are re-encoded with orientation applied; GIF passes through untouched. Video is remuxed with `MediaMuxer`, so streams are copied untouched while `udta`/location atoms are dropped and the rotation hint is preserved. Temporary copies expire after 1 hour.
-* **Remove metadata from original:** JPEG/PNG only. Requires write consent (`createWriteRequest`), backs up the original, writes the stripped file, verifies it, and restores the backup on any failure.
+* **Share without metadata:** JPEG and PNG are stripped losslessly (APPn/COM/XMP/IPTC/MPF/trailers, and tEXt/iTXt/eXIf/tIME), keeping ICC profiles and a minimal EXIF orientation tag so pictures stay upright. HEIC/WebP are re-encoded with orientation applied; GIF comment/XMP extensions are dropped while looping, timing and pixels stay intact. Video is remuxed with `MediaMuxer`, so streams are copied untouched while `udta`/location atoms are dropped and the rotation hint is preserved. Temporary copies expire after 1 hour.
+* **Remove metadata from original:** JPEG/PNG only. Requires write consent (`createWriteRequest`), backs up the original, writes an fsync'd recovery journal, writes the stripped file and verifies it. Exceptions restore the backup immediately; if the process dies mid-write, the journal drives a startup recovery pass that restores the backup (re-requesting write consent) before the cache purge runs.
 * **Info sheet:** real EXIF via `androidx.exifinterface` (unredacted GPS through `ACCESS_MEDIA_LOCATION` + `setRequireOriginal`); video location comes from `MediaMetadataRetriever`. Missing fields are shown as missing, never invented.
 
 ---
@@ -101,7 +101,7 @@ The object graph is process-scoped (`AppContainer`, created by `AndroidAppGraph`
 | Capability | Android | iOS |
 |---|---|---|
 | Device photo library | MediaStore | Demo library (PhotoKit integration pending) |
-| Vault crypto & storage | ✅ Keystore-bound | ✅ File protection; no device key yet (Keychain pending) |
+| Vault crypto & storage | ✅ Keystore-bound | ✅ Keychain-bound (ThisDeviceOnly, passcode-gated); excluded from backup |
 | Share / Lens / wallpaper / sanitize / editor export | ✅ | Hidden (capability-gated) |
 | Preferences | SharedPreferences | NSUserDefaults |
 
@@ -111,4 +111,4 @@ The UI never shows an action the platform cannot perform: features are gated by 
 
 ## 7. Testing
 
-`./gradlew :shared:testAndroidHostTest` runs 69 tests: crypto vectors and JCA cross-checks, streaming AEAD tamper cases, vault lifecycle/lockout/recovery, the metadata strippers, transfer rollback, repository behaviour, the nav back stack and ViewModel clearing, viewer re-anchoring, timeline selection, vault PIN flows and editor undo/crop math. `./gradlew :shared:compileKotlinIosSimulatorArm64` type-checks the iOS sources (it works on Linux hosts).
+`./gradlew :shared:testAndroidHostTest` runs 95 tests: crypto vectors and JCA cross-checks, streaming AEAD tamper cases and first-segment sniffing, vault lifecycle/lockout/recovery/hardening, the metadata strippers (JPEG/PNG/GIF), transfer rollback, trash browse/restore, repository behaviour, the nav back stack and ViewModel clearing, viewer re-anchoring, timeline selection, vault PIN flows and editor undo/crop/save-failure math. `./gradlew :shared:compileKotlinIosSimulatorArm64` type-checks the iOS sources (it works on Linux hosts).
