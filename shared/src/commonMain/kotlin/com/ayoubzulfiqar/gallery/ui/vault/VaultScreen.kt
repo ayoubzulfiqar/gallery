@@ -400,7 +400,7 @@ private fun UnlockedContent(state: VaultUiState, viewModel: VaultViewModel, onOp
                     bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 150.dp
                 )
             ) {
-                items(state.items, key = { it.id }) { item ->
+                items(state.items, key = { it.id }, contentType = { "vault-media" }) { item ->
                     VaultThumbnail(
                         item = item,
                         isSelected = item.id in state.selectedIds,
