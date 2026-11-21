@@ -168,7 +168,7 @@ fun AlbumsScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    items(uiState.folders, key = { it.id }) { folder ->
+                    items(uiState.folders, key = { it.id }, contentType = { "folder" }) { folder ->
                         FolderCardItem(
                             folder = folder,
                             onClick = { onFolderClick(folder.id, folder.name) }
