@@ -3,6 +3,7 @@ package com.ayoubzulfiqar.gallery.domain.repository
 import com.ayoubzulfiqar.gallery.data.datasource.DeleteMode
 import com.ayoubzulfiqar.gallery.data.datasource.DeleteResult
 import com.ayoubzulfiqar.gallery.data.datasource.MediaCapabilities
+import com.ayoubzulfiqar.gallery.data.datasource.RestoreResult
 import com.ayoubzulfiqar.gallery.domain.model.LibraryState
 import com.ayoubzulfiqar.gallery.domain.model.MediaDetails
 import com.ayoubzulfiqar.gallery.domain.model.MediaFolder
@@ -17,6 +18,12 @@ interface MediaRepository {
 
     /** Device folders derived from [library]. */
     val folders: Flow<List<MediaFolder>>
+
+    /** Items currently in the platform trash (empty when [MediaCapabilities.hasTrash] is false). */
+    val trashed: Flow<List<MediaItem>>
+
+    /** Restores trashed items; they reappear in [library] once the platform confirms. */
+    suspend fun restoreFromTrash(items: List<MediaItem>): RestoreResult
 
     fun refresh()
 
