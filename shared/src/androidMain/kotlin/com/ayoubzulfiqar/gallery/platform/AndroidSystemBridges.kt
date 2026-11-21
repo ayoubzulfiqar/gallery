@@ -43,10 +43,12 @@ class MediaStoreConsentBroker {
         }
         activity.lifecycle.addObserver(object : DefaultLifecycleObserver {
             override fun onDestroy(owner: LifecycleOwner) {
-                if (activity.isFinishing) {
-                    pending?.complete(false)
-                    pending = null
-                }
+                // Always resolve a pending request, even on a non-finishing destroy (e.g. a
+                // configuration change the activity does not handle). Otherwise requestConsent
+                // awaits forever and holds the mutex, blocking every later consent request.
+                // Callers treat false as "declined", which is the safe outcome.
+                pending?.complete(false)
+                pending = null
                 launcher = null
             }
         })
